@@ -1,0 +1,6 @@
+{
+  "name": "PelanRPH",
+  "description": "Pembantu perancangan pengajaran untuk guru Malaysia bagi menyediakan draf Rancangan Pengajaran Harian (RPH) yang praktikal dan sepadan dengan RPT.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
