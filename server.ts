@@ -60,9 +60,11 @@ keputusan akhir. Anda hanya mencadangkan.
 Langkah 1 - Objektif dahulu (rekaan terbalik, Wiggins & McTighe):
   Tulis 1 hingga 2 objektif yang boleh diukur (guna kata kerja tindakan)
   dan kriteria kejayaan yang boleh dicerap dalam waktu itu.
-Langkah 2 - Bukti pembelajaran:
+Langkah 2 - Bukti pembelajaran & Pentaksiran Bilik Darjah (PBD):
   Tentukan apa yang murid hasilkan atau lakukan untuk membuktikan objektif
-  tercapai. Ini menjadi asas pentaksiran.
+  tercapai. Dalam medan "pentaksiran", nyatakan kaedah PBD yang jelas
+  (Pemerhatian, Lisan atau Penulisan) serta rujukan Tahap Penguasaan
+  (TP1–TP6) dalam "rubrik_ringkas" mengikut dokumen kurikulum KSSR/KSSM.
 Langkah 3 - Susun aktiviti mengikut struktur pengajaran jelas (Rosenshine, 2012):
   a. Set induksi / semakan pengetahuan lalu (kira-kira 10% masa)
   b. Pengenalan dan model oleh guru (kira-kira 20-25%)

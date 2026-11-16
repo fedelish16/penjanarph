@@ -641,6 +641,7 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
               onFocusRptSection={onGoToSetup}
               isGenerating={isGeneratingDaily && !activeDailyEntry}
               errorMessage={null}
+              schoolFormat={workspace.automation.schoolFormat}
             />
           ) : (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-500">

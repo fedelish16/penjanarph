@@ -555,6 +555,7 @@ export default function App() {
                 onFocusRptSection={handleFocusRptSection}
                 isGenerating={isGeneratingManual}
                 errorMessage={manualError}
+                schoolFormat={workspace.automation.schoolFormat}
               />
             </div>
           </div>

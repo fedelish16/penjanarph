@@ -6,12 +6,19 @@ import {
   CheckCircle2,
   ClipboardCopy,
   FileCheck2,
+  FileDown,
   FileJson,
   LayoutList,
   Printer,
   ShieldCheck,
 } from 'lucide-react';
-import type { RphActivity, RphDraftOutput, RphRequestInput } from '../types/rph';
+import { exportRphToDocx } from '../utils/exportDocx';
+import type {
+  RphActivity,
+  RphDraftOutput,
+  RphRequestInput,
+  SchoolFormatConfig,
+} from '../types/rph';
 
 interface RphDocumentPreviewProps {
   input: RphRequestInput;
@@ -24,6 +31,7 @@ interface RphDocumentPreviewProps {
   onFocusRptSection: () => void;
   isGenerating: boolean;
   errorMessage: string | null;
+  schoolFormat?: SchoolFormatConfig;
 }
 
 type ViewTab = 'dokumen' | 'pedagogi' | 'json';
@@ -52,10 +60,22 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
   onFocusRptSection,
   isGenerating,
   errorMessage,
+  schoolFormat,
 }) => {
   const [activeTab, setActiveTab] = useState<ViewTab>('dokumen');
   const [copiedType, setCopiedType] = useState<'json' | 'text' | null>(null);
   const [savedNotice, setSavedNotice] = useState<boolean>(false);
+  const [isExportingWord, setIsExportingWord] = useState<boolean>(false);
+
+  const handleExportWord = async () => {
+    if (!draft || draft.status !== 'SIAP') return;
+    setIsExportingWord(true);
+    try {
+      await exportRphToDocx({ draft, teacherReflection, schoolFormat });
+    } finally {
+      setIsExportingWord(false);
+    }
+  };
 
   const handleCopyJson = async () => {
     if (!draft) return;
@@ -390,11 +410,20 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
               </button>
               <button
                 type="button"
+                onClick={() => void handleExportWord()}
+                disabled={isExportingWord}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-sky-700 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-900 hover:bg-sky-100 transition-colors whitespace-nowrap shrink-0 disabled:opacity-50"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                {isExportingWord ? 'Menjana Word...' : 'Eksport Word (.docx)'}
+              </button>
+              <button
+                type="button"
                 onClick={() => window.print()}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
               >
                 <Printer className="w-3.5 h-3.5" />
-                Cetak
+                Cetak / PDF
               </button>
             </>
           )}
@@ -678,11 +707,20 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
           {/* Document Title & Stamp */}
           <div className="p-6 flex flex-wrap items-start justify-between gap-4">
             <div>
+              {schoolFormat?.namaSekolah?.trim() && (
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-800">
+                  {schoolFormat.namaSekolah}
+                </p>
+              )}
               <p className="text-xs font-medium text-slate-500">
                 {input.kurikulum} · {input.templat_rph.split('(')[0].trim()}
+                {schoolFormat?.namaGuru?.trim()
+                  ? ` · Guru: ${schoolFormat.namaGuru}`
+                  : ''}
               </p>
               <h2 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
-                Rancangan Pengajaran Harian (RPH)
+                {schoolFormat?.tajukRph?.trim() ||
+                  'Rancangan Pengajaran Harian (RPH)'}
               </h2>
             </div>
             <div className="border border-slate-300 rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50">
@@ -922,70 +960,202 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
             </div>
           </div>
 
-          {/* BBM, EMK, KBAT, Pentaksiran, Pembezaan */}
+          {/* BBM, EMK, KBAT, Pentaksiran (PBD), Pembezaan (Semua Boleh Disunting) */}
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
             <div className="space-y-4">
               <div>
-                <h4 className="text-xs font-semibold text-slate-500">
-                  Bahan Bantu Mengajar (BBM)
-                </h4>
-                <p className="mt-1 text-sm text-slate-800">
-                  {draft.bbm.join(' · ')}
-                </p>
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="edit-bbm"
+                    className="text-xs font-semibold text-slate-500"
+                  >
+                    Bahan Bantu Mengajar (BBM)
+                  </label>
+                  <span className="no-print text-[11px] text-slate-400">
+                    Pisahkan dengan koma
+                  </span>
+                </div>
+                <input
+                  id="edit-bbm"
+                  type="text"
+                  value={draft.bbm.join(', ')}
+                  onChange={(e) =>
+                    onDraftUpdate({
+                      ...draft,
+                      bbm: e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  className="mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 focus:outline-none"
+                />
               </div>
 
               <div>
-                <h4 className="text-xs font-semibold text-slate-500">
-                  Elemen Merentas Kurikulum (EMK)
-                </h4>
-                <p className="mt-1 text-sm text-slate-800">
-                  {draft.emk.join(' · ')}
-                </p>
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="edit-emk"
+                    className="text-xs font-semibold text-slate-500"
+                  >
+                    Elemen Merentas Kurikulum (EMK)
+                  </label>
+                  <span className="no-print text-[11px] text-slate-400">
+                    Pisahkan dengan koma
+                  </span>
+                </div>
+                <input
+                  id="edit-emk"
+                  type="text"
+                  value={draft.emk.join(', ')}
+                  onChange={(e) =>
+                    onDraftUpdate({
+                      ...draft,
+                      emk: e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  className="mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 focus:outline-none"
+                />
               </div>
 
               <div>
-                <h4 className="text-xs font-semibold text-slate-500">
-                  Kemahiran Berfikir Aras Tinggi (KBAT · {draft.kbat.aras_bloom})
-                </h4>
-                <p className="mt-1 text-sm text-slate-800 leading-relaxed">
-                  {draft.kbat.soalan_atau_tugasan}
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-500">
+                    Kemahiran Berfikir Aras Tinggi (KBAT)
+                  </span>
+                  <input
+                    type="text"
+                    value={draft.kbat.aras_bloom}
+                    onChange={(e) =>
+                      onDraftUpdate({
+                        ...draft,
+                        kbat: { ...draft.kbat, aras_bloom: e.target.value },
+                      })
+                    }
+                    aria-label="Aras Bloom KBAT"
+                    className="w-32 rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-right text-xs font-medium text-sky-800 focus:outline-none"
+                  />
+                </div>
+                <textarea
+                  rows={2}
+                  value={draft.kbat.soalan_atau_tugasan}
+                  onChange={(e) =>
+                    onDraftUpdate({
+                      ...draft,
+                      kbat: {
+                        ...draft.kbat,
+                        soalan_atau_tugasan: e.target.value,
+                      },
+                    })
+                  }
+                  className="mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-y"
+                />
               </div>
             </div>
 
             <div className="space-y-4">
-              <div>
-                <h4 className="text-xs font-semibold text-slate-500">
-                  Pentaksiran ({draft.pentaksiran.jenis.toUpperCase()} ·{' '}
-                  {draft.pentaksiran.kaedah})
-                </h4>
-                <p className="mt-1 text-sm text-slate-800 leading-relaxed">
-                  {draft.pentaksiran.soalan_atau_tugasan}
-                </p>
-                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                  <span className="font-medium text-slate-700">
-                    Rubrik Ringkas:
-                  </span>{' '}
-                  {draft.pentaksiran.rubrik_ringkas}
-                </p>
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-500">
+                    Pentaksiran Bilik Darjah (PBD ·{' '}
+                    {draft.pentaksiran.jenis.toUpperCase()})
+                  </span>
+                  <input
+                    type="text"
+                    value={draft.pentaksiran.kaedah}
+                    onChange={(e) =>
+                      onDraftUpdate({
+                        ...draft,
+                        pentaksiran: {
+                          ...draft.pentaksiran,
+                          kaedah: e.target.value,
+                        },
+                      })
+                    }
+                    aria-label="Kaedah PBD"
+                    className="w-44 rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-right text-xs font-medium text-slate-700 focus:outline-none"
+                  />
+                </div>
+                <textarea
+                  rows={2}
+                  value={draft.pentaksiran.soalan_atau_tugasan}
+                  onChange={(e) =>
+                    onDraftUpdate({
+                      ...draft,
+                      pentaksiran: {
+                        ...draft.pentaksiran,
+                        soalan_atau_tugasan: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-y"
+                />
+                <div className="flex items-start gap-1.5 text-xs text-slate-600">
+                  <span className="font-medium text-slate-700 mt-1 shrink-0">
+                    Rubrik / TP:
+                  </span>
+                  <textarea
+                    rows={2}
+                    value={draft.pentaksiran.rubrik_ringkas}
+                    onChange={(e) =>
+                      onDraftUpdate({
+                        ...draft,
+                        pentaksiran: {
+                          ...draft.pentaksiran,
+                          rubrik_ringkas: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2 border-t border-slate-200 pt-3">
                 <h4 className="text-xs font-semibold text-slate-500">
                   Pembezaan PdPc
                 </h4>
-                <p className="text-xs text-slate-700 leading-relaxed">
-                  <span className="font-semibold text-slate-900">
+                <div className="flex items-start gap-1.5 text-xs text-slate-700">
+                  <span className="font-semibold text-slate-900 mt-1 shrink-0">
                     Pemulihan:
-                  </span>{' '}
-                  {draft.pembezaan.pemulihan}
-                </p>
-                <p className="text-xs text-slate-700 leading-relaxed">
-                  <span className="font-semibold text-slate-900">
+                  </span>
+                  <textarea
+                    rows={2}
+                    value={draft.pembezaan.pemulihan}
+                    onChange={(e) =>
+                      onDraftUpdate({
+                        ...draft,
+                        pembezaan: {
+                          ...draft.pembezaan,
+                          pemulihan: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                  />
+                </div>
+                <div className="flex items-start gap-1.5 text-xs text-slate-700">
+                  <span className="font-semibold text-slate-900 mt-1 shrink-0">
                     Pengayaan:
-                  </span>{' '}
-                  {draft.pembezaan.pengayaan}
-                </p>
+                  </span>
+                  <textarea
+                    rows={2}
+                    value={draft.pembezaan.pengayaan}
+                    onChange={(e) =>
+                      onDraftUpdate({
+                        ...draft,
+                        pembezaan: {
+                          ...draft.pembezaan,
+                          pengayaan: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1012,6 +1182,23 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
               placeholder="Catatkan bilangan murid yang mencapai objektif dan tindakan susulan selepas sesi pengajaran tamat..."
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-700/15"
             />
+
+            {schoolFormat?.sertakanTandatanganPk && (
+              <div className="hidden print:grid grid-cols-2 gap-8 pt-6 text-xs text-slate-700">
+                <div className="space-y-8">
+                  <div className="font-semibold">Disediakan oleh:</div>
+                  <div className="border-t border-slate-400 pt-1">
+                    {schoolFormat.namaGuru?.trim() || 'Guru Mata Pelajaran'}
+                  </div>
+                </div>
+                <div className="space-y-8">
+                  <div className="font-semibold">Disemak oleh (PK / GPK):</div>
+                  <div className="border-t border-slate-400 pt-1">
+                    Tandatangan &amp; Tarikh Semakan
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </article>
       )}

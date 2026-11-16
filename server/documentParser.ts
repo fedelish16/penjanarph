@@ -306,11 +306,14 @@ PERATURAN KETAT:
   }
 
   // kind === 'sukatan'
-  const prompt = `Ekstrak maklumat rujukan SUKATAN PELAJARAN / DSKP ini ke dalam JSON untuk membantu pembinaan aktiviti, pentaksiran TP1–TP6, dan EMK dalam RPH.
+  const prompt = `Ekstrak maklumat rujukan SUKATAN PELAJARAN / DSKP ini ke dalam JSON untuk membantu pembinaan aktiviti, Pentaksiran Bilik Darjah (PBD TP1–TP6), dan EMK dalam RPH.
+PERATURAN KETAT:
+- Jangan reka sebarang kod DSKP, nombor standard, atau ayat standard yang tidak wujud secara nyata dalam dokumen yang dimuat naik.
+- Salin kod dan ayat Standard Kandungan / Standard Pembelajaran secara verbatim daripada dokumen asal.
 Sertakan:
-- mata_pelajaran, tingkatan_tahun, kurikulum
-- ringkasan_kandungan (huraian ringkas fokus kurikulum, kemahiran utama, dan panduan pentaksiran bilik darjah daripada dokumen ini)
-- standard_rujukan (senarai hingga 15 standard utama beserta kod, standard_kandungan, standard_pembelajaran, dan tahap_penguasaan jika ada).`;
+- mata_pelajaran, tingkatan_tahun, kurikulum (KSSM / KSSR Semakan / dll.)
+- ringkasan_kandungan (huraian ringkas fokus kurikulum, kemahiran utama, dan panduan PBD daripada dokumen ini)
+- standard_rujukan (senarai hingga 15 standard utama beserta kod tepat, standard_kandungan, standard_pembelajaran, dan tahap_penguasaan jika dinyatakan dalam dokumen).`;
 
   const parts = params.fileBuffer
     ? await fileToGeminiContentParts(

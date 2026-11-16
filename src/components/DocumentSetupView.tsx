@@ -13,11 +13,13 @@ import {
   Upload,
   Users,
 } from 'lucide-react';
-import { COMMON_RESOURCES } from '../data/presets';
+import { COMMON_RESOURCES, RPH_TEMPLATES } from '../data/presets';
 import type {
   ClassContextConfig,
   DocumentKind,
   HariMinggu,
+  RptEntry,
+  SchoolFormatConfig,
   TeacherWorkspaceState,
   TimetableSlot,
 } from '../types/rph';
@@ -38,7 +40,7 @@ interface DocumentSetupViewProps {
   uploadError: string | null;
 }
 
-type InspectTab = 'jadual' | 'rpt' | 'sukatan' | 'kelas';
+type InspectTab = 'jadual' | 'rpt' | 'sukatan' | 'kelas' | 'format';
 
 const DAYS_ORDER: HariMinggu[] = [
   'Isnin',
@@ -76,6 +78,17 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
     kelas: '',
     kurikulum: 'KSSM (DSKP Semakan Terkini)',
     bilik: '',
+  });
+
+  const [newRpt, setNewRpt] = useState<Omit<RptEntry, 'id'>>({
+    mata_pelajaran: '',
+    tingkatan_tahun: '',
+    minggu: 'Minggu 12',
+    minggu_nombor: 12,
+    tema: '',
+    standard_kandungan: '',
+    standard_pembelajaran: '',
+    catatan: '',
   });
 
   const handleFileChange = async (
@@ -146,6 +159,59 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
     await onWorkspaceUpdate({
       ...workspace,
       rptEntries: workspace.rptEntries.filter((r) => r.id !== id),
+    });
+  };
+
+  const handleUpdateRptEntry = async (
+    id: string,
+    patch: Partial<RptEntry>
+  ) => {
+    await onWorkspaceUpdate({
+      ...workspace,
+      rptEntries: workspace.rptEntries.map((r) =>
+        r.id === id ? { ...r, ...patch } : r
+      ),
+    });
+  };
+
+  const handleAddManualRpt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRpt.mata_pelajaran.trim()) return;
+    const wkNum = Number(newRpt.minggu_nombor) || 1;
+    const entry: RptEntry = {
+      ...newRpt,
+      id: `rpt-manual-${Date.now()}`,
+      minggu_nombor: wkNum,
+      minggu: newRpt.minggu.trim() || `Minggu ${wkNum}`,
+    };
+    await onWorkspaceUpdate({
+      ...workspace,
+      rptEntries: [...workspace.rptEntries, entry],
+    });
+    setNewRpt({
+      ...newRpt,
+      tema: '',
+      standard_kandungan: '',
+      standard_pembelajaran: '',
+      catatan: '',
+    });
+  };
+
+  const handleUpdateSchoolFormat = async (
+    patch: Partial<SchoolFormatConfig>
+  ) => {
+    const current: SchoolFormatConfig = workspace.automation.schoolFormat ?? {
+      namaSekolah: '',
+      namaGuru: '',
+      tajukRph: 'Rancangan Pengajaran Harian (RPH)',
+      sertakanTandatanganPk: true,
+    };
+    await onWorkspaceUpdate({
+      ...workspace,
+      automation: {
+        ...workspace.automation,
+        schoolFormat: { ...current, ...patch },
+      },
     });
   };
 
@@ -540,6 +606,17 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
             >
               Profil Kelas &amp; Sumber ({Object.keys(workspace.classConfigs).length})
             </button>
+            <button
+              type="button"
+              onClick={() => setInspectTab('format')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                inspectTab === 'format'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Format Sekolah (Word &amp; PDF)
+            </button>
           </div>
         </div>
 
@@ -696,14 +773,13 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
           </div>
         )}
 
-        {/* Tab 2: RPT Entries */}
+        {/* Tab 2: RPT Entries (Editable + Addable) */}
         {inspectTab === 'rpt' && (
-          <div>
+          <div className="divide-y divide-slate-200">
             {sortedRpt.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">
                 Belum ada entri RPT dimuat naik. Muat naik dokumen RPT anda di
-                atas untuk memadankan Standard Kandungan dan Standard
-                Pembelajaran secara automatik setiap minggu.
+                atas atau masukkan entri RPT anda sendiri di bawah.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -712,9 +788,10 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
                       <th className="py-2.5 px-4 w-24">Minggu</th>
                       <th className="py-2.5 px-4 w-44">Subjek &amp; Tingkatan</th>
-                      <th className="py-2.5 px-4 w-48">Tema</th>
+                      <th className="py-2.5 px-4 w-48">Tema (Sunting)</th>
                       <th className="py-2.5 px-4">
-                        Standard Kandungan &amp; Standard Pembelajaran (Verbatim)
+                        Standard Kandungan &amp; Standard Pembelajaran (Verbatim
+                        · Boleh Disunting)
                       </th>
                       <th className="py-2.5 px-4 text-right w-16">Padam</th>
                     </tr>
@@ -733,35 +810,67 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
                             {entry.tingkatan_tahun}
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-slate-800 font-medium">
-                          {entry.tema || '—'}
+                        <td className="py-3 px-4">
+                          <input
+                            type="text"
+                            value={entry.tema}
+                            onChange={(e) =>
+                              void handleUpdateRptEntry(entry.id, {
+                                tema: e.target.value,
+                              })
+                            }
+                            aria-label={`Tema ${entry.minggu}`}
+                            className="w-full rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-1 text-xs font-medium text-slate-800 focus:outline-none"
+                          />
                         </td>
-                        <td className="py-3 px-4 space-y-1 text-slate-700 leading-relaxed">
-                          {entry.standard_kandungan ? (
-                            <>
-                              <div>
-                                <span className="font-semibold text-slate-900">
-                                  SK:
-                                </span>{' '}
-                                {entry.standard_kandungan}
-                              </div>
-                              <div>
-                                <span className="font-semibold text-slate-900">
-                                  SP:
-                                </span>{' '}
-                                {entry.standard_pembelajaran}
-                              </div>
-                            </>
-                          ) : (
-                            <div className="text-amber-700 font-medium">
-                              Tiada SK/SP PdPc baharu
-                            </div>
-                          )}
-                          {entry.catatan && (
-                            <div className="text-slate-500">
-                              Catatan: {entry.catatan}
-                            </div>
-                          )}
+                        <td className="py-3 px-4 space-y-1.5 text-slate-700 leading-relaxed">
+                          <div className="flex items-start gap-1.5">
+                            <span className="font-semibold text-slate-900 mt-1 shrink-0">
+                              SK:
+                            </span>
+                            <textarea
+                              rows={2}
+                              value={entry.standard_kandungan}
+                              onChange={(e) =>
+                                void handleUpdateRptEntry(entry.id, {
+                                  standard_kandungan: e.target.value,
+                                })
+                              }
+                              placeholder="Kosongkan jika minggu peperiksaan/cuti"
+                              className="w-full rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-xs text-slate-800 focus:outline-none resize-y"
+                            />
+                          </div>
+                          <div className="flex items-start gap-1.5">
+                            <span className="font-semibold text-slate-900 mt-1 shrink-0">
+                              SP:
+                            </span>
+                            <textarea
+                              rows={2}
+                              value={entry.standard_pembelajaran}
+                              onChange={(e) =>
+                                void handleUpdateRptEntry(entry.id, {
+                                  standard_pembelajaran: e.target.value,
+                                })
+                              }
+                              placeholder="Kosongkan jika minggu peperiksaan/cuti"
+                              className="w-full rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-xs text-slate-800 focus:outline-none resize-y"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-500 shrink-0">
+                              Catatan:
+                            </span>
+                            <input
+                              type="text"
+                              value={entry.catatan}
+                              onChange={(e) =>
+                                void handleUpdateRptEntry(entry.id, {
+                                  catatan: e.target.value,
+                                })
+                              }
+                              className="w-full rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-xs text-slate-600 focus:outline-none"
+                            />
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-right">
                           <button
@@ -779,6 +888,104 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
                 </table>
               </div>
             )}
+
+            {/* Add custom RPT entry form */}
+            <form
+              onSubmit={(e) => void handleAddManualRpt(e)}
+              className="p-4 bg-slate-50/50 space-y-3"
+            >
+              <div className="text-xs font-semibold text-slate-800">
+                Tambah Entri RPT Sendiri (Manual)
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={52}
+                  value={newRpt.minggu_nombor}
+                  onChange={(e) => {
+                    const n = Number(e.target.value) || 1;
+                    setNewRpt({
+                      ...newRpt,
+                      minggu_nombor: n,
+                      minggu: `Minggu ${n}`,
+                    });
+                  }}
+                  placeholder="Minggu (cth. 12)"
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs"
+                />
+                <input
+                  type="text"
+                  value={newRpt.mata_pelajaran}
+                  onChange={(e) =>
+                    setNewRpt({ ...newRpt, mata_pelajaran: e.target.value })
+                  }
+                  placeholder="Mata Pelajaran (cth. Sains)"
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs"
+                  required
+                />
+                <input
+                  type="text"
+                  value={newRpt.tingkatan_tahun}
+                  onChange={(e) =>
+                    setNewRpt({ ...newRpt, tingkatan_tahun: e.target.value })
+                  }
+                  placeholder="Tingkatan / Tahun (cth. Tahun 4)"
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs"
+                  required
+                />
+                <input
+                  type="text"
+                  value={newRpt.tema}
+                  onChange={(e) =>
+                    setNewRpt({ ...newRpt, tema: e.target.value })
+                  }
+                  placeholder="Tema / Tajuk RPT"
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <textarea
+                  rows={2}
+                  value={newRpt.standard_kandungan}
+                  onChange={(e) =>
+                    setNewRpt({ ...newRpt, standard_kandungan: e.target.value })
+                  }
+                  placeholder="Standard Kandungan (salin tepat daripada DSKP / RPT anda)"
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs"
+                />
+                <textarea
+                  rows={2}
+                  value={newRpt.standard_pembelajaran}
+                  onChange={(e) =>
+                    setNewRpt({
+                      ...newRpt,
+                      standard_pembelajaran: e.target.value,
+                    })
+                  }
+                  placeholder="Standard Pembelajaran (salin tepat daripada DSKP / RPT anda)"
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <input
+                  type="text"
+                  value={newRpt.catatan}
+                  onChange={(e) =>
+                    setNewRpt({ ...newRpt, catatan: e.target.value })
+                  }
+                  placeholder="Catatan RPT (pilihan)"
+                  className="flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 whitespace-nowrap"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Tambah Entri RPT
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
@@ -940,6 +1147,118 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {/* Tab 5: School Format Customization (Word & PDF) */}
+        {inspectTab === 'format' && (
+          <div className="p-5 space-y-5 text-xs">
+            <div className="max-w-2xl space-y-1">
+              <h4 className="text-sm font-semibold text-slate-900">
+                Penyesuaian Format Sekolah untuk Eksport Word (.docx) &amp; PDF
+              </h4>
+              <p className="text-slate-500 leading-relaxed">
+                Tetapkan kepala surat sekolah, nama guru dan templat RPH
+                sekolah anda untuk dimasukkan ke dalam dokumen Word (.docx)
+                serta cetakan PDF sebelum semakan PK / GPK.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Nama Sekolah
+                </label>
+                <input
+                  type="text"
+                  value={workspace.automation.schoolFormat?.namaSekolah ?? ''}
+                  onChange={(e) =>
+                    void handleUpdateSchoolFormat({
+                      namaSekolah: e.target.value,
+                    })
+                  }
+                  placeholder="cth. SMK Wawasan / SK Taman Melawati"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Nama Guru (Untuk Ruangan Tandatangan)
+                </label>
+                <input
+                  type="text"
+                  value={workspace.automation.schoolFormat?.namaGuru ?? ''}
+                  onChange={(e) =>
+                    void handleUpdateSchoolFormat({ namaGuru: e.target.value })
+                  }
+                  placeholder="cth. Cikgu Nurul Huda binti Ahmad"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Tajuk Dokumen RPH Sekolah
+                </label>
+                <input
+                  type="text"
+                  value={
+                    workspace.automation.schoolFormat?.tajukRph ??
+                    'Rancangan Pengajaran Harian (RPH)'
+                  }
+                  onChange={(e) =>
+                    void handleUpdateSchoolFormat({ tajukRph: e.target.value })
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Templat RPH Utama
+                </label>
+                <select
+                  value={workspace.automation.templatRph}
+                  onChange={(e) =>
+                    void onWorkspaceUpdate({
+                      ...workspace,
+                      automation: {
+                        ...workspace.automation,
+                        templatRph: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900"
+                >
+                  {RPH_TEMPLATES.map((tpl) => (
+                    <option key={tpl} value={tpl}>
+                      {tpl}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <label className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={
+                  workspace.automation.schoolFormat?.sertakanTandatanganPk ??
+                  true
+                }
+                onChange={(e) =>
+                  void handleUpdateSchoolFormat({
+                    sertakanTandatanganPk: e.target.checked,
+                  })
+                }
+                className="rounded border-slate-300 text-sky-700 focus:ring-sky-700"
+              />
+              <span>
+                Sertakan ruangan tandatangan Guru &amp; Semakan PK / GPK dalam
+                eksport Word dan cetakan PDF
+              </span>
+            </label>
           </div>
         )}
       </div>
