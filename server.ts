@@ -19,8 +19,6 @@ import {
   findMatchingRptEntry,
   findMatchingSyllabus,
   getMalayDayName,
-  loadWorkspace,
-  saveWorkspace,
 } from './server/workspaceStore.ts';
 import { parseUploadedTeacherDocument } from './server/documentParser.ts';
 
@@ -434,36 +432,10 @@ async function startServer() {
     res.json({ ok: true });
   });
 
-  // Workspace persistence endpoints
-  app.get('/api/workspace', async (_req, res) => {
-    try {
-      const ws = await loadWorkspace();
-      res.json(ws);
-    } catch (err: unknown) {
-      res.status(500).json({
-        error:
-          err instanceof Error ? err.message : 'Gagal memuat ruang kerja.',
-      });
-    }
-  });
-
-  app.put('/api/workspace', async (req, res) => {
-    try {
-      const next = req.body as TeacherWorkspaceState;
-      await saveWorkspace(next);
-      res.json(next);
-    } catch (err: unknown) {
-      res.status(500).json({
-        error:
-          err instanceof Error ? err.message : 'Gagal menyimpan ruang kerja.',
-      });
-    }
-  });
-
-  app.post('/api/workspace/load-demo-pack', async (_req, res) => {
+  // Stateless demo pack endpoint for per-teacher cloud workspaces
+  app.post('/api/workspace/load-demo-pack', (_req, res) => {
     try {
       const demo = createDemoTeacherWorkspace();
-      await saveWorkspace(demo);
       res.json(demo);
     } catch (err: unknown) {
       res.status(500).json({
@@ -475,20 +447,21 @@ async function startServer() {
     }
   });
 
-  app.post('/api/workspace/reset', async (_req, res) => {
+  app.post('/api/workspace/reset', (_req, res) => {
     try {
       const empty = createDefaultEmptyWorkspace();
-      await saveWorkspace(empty);
       res.json(empty);
     } catch (err: unknown) {
       res.status(500).json({
         error:
-          err instanceof Error ? err.message : 'Gagal menetapkan semula ruang kerja.',
+          err instanceof Error
+            ? err.message
+            : 'Gagal menetapkan semula ruang kerja.',
       });
     }
   });
 
-  // Upload and AI-parse Jadual, RPT, or Sukatan Pelajaran
+  // Upload and AI-parse Jadual, RPT, or Sukatan Pelajaran (stateless; client persists to Firestore)
   app.post(
     '/api/documents/parse',
     upload.single('file'),
@@ -512,7 +485,6 @@ async function startServer() {
         const rawText =
           typeof req.body?.rawText === 'string' ? req.body.rawText.trim() : '';
         const file = req.file;
-        const mergeMode = req.body?.mergeMode === 'append' ? 'append' : 'replace';
 
         if (!file && !rawText) {
           res.status(400).json({
@@ -538,56 +510,22 @@ async function startServer() {
           rawText,
         });
 
-        const ws = await loadWorkspace();
-        const nowIso = new Date().toISOString();
-
-        // Update uploaded doc metadata
-        ws.documents = [
-          ...ws.documents.filter((d) => d.kind !== kind || mergeMode === 'append'),
-          {
-            kind,
-            fileName,
-            uploadedAt: nowIso,
-            summary: parsed.summary,
-          },
-        ];
-
-        if (kind === 'jadual' && parsed.timetable) {
-          ws.timetable =
-            mergeMode === 'append'
-              ? [...ws.timetable, ...parsed.timetable]
-              : parsed.timetable;
-
-          // Ensure classConfigs entries exist for newly discovered classes
-          for (const slot of parsed.timetable) {
-            if (!ws.classConfigs[slot.kelas]) {
-              ws.classConfigs[slot.kelas] = {
-                kelas: slot.kelas,
-                bil_murid: '30 orang murid',
-                tahap_penguasaan_umum: 'Tahap Penguasaan 3 hingga 4',
-                keperluan_khas_umum: 'Tiada keperluan khas khusus dinyatakan',
-                sumber_ada: [
-                  'Papan putih & pen penanda',
-                  'Buku teks KPM',
-                  'Tiada sambungan internet',
-                ],
-              };
-            }
-          }
-        } else if (kind === 'rpt' && parsed.rptEntries) {
-          ws.rptEntries =
-            mergeMode === 'append'
-              ? [...ws.rptEntries, ...parsed.rptEntries]
-              : parsed.rptEntries;
-        } else if (kind === 'sukatan' && parsed.syllabus) {
-          ws.syllabi =
-            mergeMode === 'append'
-              ? [...ws.syllabi, parsed.syllabus]
-              : [parsed.syllabus];
+        // Normalize timetable slot IDs so Firestore document IDs stay valid [a-zA-Z0-9_-]
+        if (parsed.timetable) {
+          parsed.timetable = parsed.timetable.map((slot, idx) => ({
+            ...slot,
+            id:
+              (slot.id || `slot_${Date.now()}_${idx}`)
+                .replace(/[^a-zA-Z0-9_-]/g, '_')
+                .slice(0, 64) || `slot_${idx}`,
+          }));
         }
 
-        await saveWorkspace(ws);
-        res.json({ parsed, workspace: ws });
+        res.json({
+          parsed,
+          fileName,
+          uploadedAt: new Date().toISOString(),
+        });
       } catch (err: unknown) {
         console.error('Error parsing document:', err);
         res.status(500).json({
@@ -632,7 +570,7 @@ async function startServer() {
     }
   });
 
-  // Daily automatic RPH generation for all teaching slots on a given date
+  // Daily automatic RPH generation for all teaching slots on a given date (stateless; returns generatedDrafts)
   app.post('/api/rph/generate-daily', async (req, res) => {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
@@ -653,13 +591,23 @@ async function startServer() {
         ? (req.body.slotIds as string[])
         : null;
 
-      const ws = await loadWorkspace();
+      const ws =
+        req.body?.workspaceData && typeof req.body.workspaceData === 'object'
+          ? (req.body.workspaceData as TeacherWorkspaceState)
+          : createDefaultEmptyWorkspace();
+
+      const existingDraftKeys = new Set<string>(
+        Array.isArray(req.body?.existingDraftKeys)
+          ? (req.body.existingDraftKeys as string[])
+          : Object.keys(ws.dailyDrafts ?? {})
+      );
+
       const mingguNombor = Number(
-        req.body?.mingguNombor ?? ws.automation.mingguSemasa ?? 12
+        req.body?.mingguNombor ?? ws.automation?.mingguSemasa ?? 12
       );
       const dayName = getMalayDayName(date);
 
-      const daySlots = ws.timetable
+      const daySlots = (ws.timetable ?? [])
         .filter((s) => s.hari === dayName)
         .filter((s) => (onlySlotIds ? onlySlotIds.includes(s.id) : true))
         .sort((a, b) => a.masa_mula.localeCompare(b.masa_mula));
@@ -670,28 +618,34 @@ async function startServer() {
           dayName,
           mingguNombor,
           generatedCount: 0,
-          workspace: ws,
+          generatedDrafts: [] as DailyAutoDraft[],
         });
         return;
       }
 
-      let generatedCount = 0;
+      const generatedDrafts: DailyAutoDraft[] = [];
 
       // Process slots in parallel so all daily RPHs appear quickly
       await Promise.all(
         daySlots.map(async (slot) => {
-          const draftKey = `${date}_${slot.id}`;
-          if (!forceRegenerate && ws.dailyDrafts[draftKey]) {
+          const cleanSlotId =
+            slot.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'slot';
+          const draftKey = `${date}_${cleanSlotId}`;
+          if (
+            !forceRegenerate &&
+            (existingDraftKeys.has(draftKey) ||
+              existingDraftKeys.has(`${date}_${slot.id}`))
+          ) {
             return;
           }
 
           const rptMatch = findMatchingRptEntry(
             slot,
             mingguNombor,
-            ws.rptEntries
+            ws.rptEntries ?? []
           );
-          const syllabusMatch = findMatchingSyllabus(slot, ws.syllabi);
-          const classCfg = ws.classConfigs[slot.kelas];
+          const syllabusMatch = findMatchingSyllabus(slot, ws.syllabi ?? []);
+          const classCfg = (ws.classConfigs ?? {})[slot.kelas];
 
           const syllabusContextText = syllabusMatch
             ? `${syllabusMatch.ringkasan_kandungan} ${syllabusMatch.standard_rujukan
@@ -743,10 +697,12 @@ async function startServer() {
               'Buku teks KPM',
               'Tiada sambungan internet',
             ],
-            templat_rph: ws.automation.templatRph,
+            templat_rph:
+              ws.automation?.templatRph ||
+              'Standard KPM / PPD (Objektif, KK, Aktiviti, BBM, EMK, KBAT, Pentaksiran, Pembezaan, Refleksi)',
             catatan_guru: [
               slot.bilik ? `Lokasi kelas: ${slot.bilik}.` : '',
-              ws.automation.catatanGuruUmum,
+              ws.automation?.catatanGuruUmum || '',
             ]
               .filter(Boolean)
               .join(' '),
@@ -768,20 +724,16 @@ async function startServer() {
             generatedAt: new Date().toISOString(),
           };
 
-          ws.dailyDrafts[draftKey] = dailyEntry;
-          generatedCount += 1;
+          generatedDrafts.push(dailyEntry);
         })
       );
-
-      ws.automation.mingguSemasa = mingguNombor;
-      await saveWorkspace(ws);
 
       res.json({
         date,
         dayName,
         mingguNombor,
-        generatedCount,
-        workspace: ws,
+        generatedCount: generatedDrafts.length,
+        generatedDrafts,
       });
     } catch (err: unknown) {
       console.error('Error in generate-daily:', err);

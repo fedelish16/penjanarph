@@ -1,0 +1,229 @@
+{
+  "entities": {
+    "TeacherProfile": {
+      "title": "TeacherProfile",
+      "description": "Profil akaun guru yang disahkan melalui Google Sign-In.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "ID unik pengguna Firebase Auth."
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "Nama paparan guru."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "description": "Alamat e-mel rasmi guru."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Masa profil diwujudkan pada pelayan."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Masa profil dikemas kini pada pelayan."
+        }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "TeacherWorkspace": {
+      "title": "TeacherWorkspace",
+      "description": "Ruang kerja induk guru mengandungi jadual mengajar, entri RPT, rujukan DSKP, profil kelas dan tetapan format sekolah.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID guru pemilik ruang kerja."
+        },
+        "documents": {
+          "type": "array",
+          "description": "Senarai metadata dokumen yang dimuat naik."
+        },
+        "timetable": {
+          "type": "array",
+          "description": "Senarai slot jadual waktu mengajar mingguan."
+        },
+        "rptEntries": {
+          "type": "array",
+          "description": "Senarai entri Rancangan Pengajaran Tahunan (RPT)."
+        },
+        "syllabi": {
+          "type": "array",
+          "description": "Senarai ringkasan dan rujukan DSKP / Sukatan Pelajaran."
+        },
+        "classConfigs": {
+          "type": "object",
+          "description": "Konfigurasi umum kelas dan sumber tersedia (tanpa data peribadi murid)."
+        },
+        "automation": {
+          "type": "object",
+          "description": "Tetapan automasi harian dan format dokumen sekolah."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "documents",
+        "timetable",
+        "rptEntries",
+        "syllabi",
+        "classConfigs",
+        "automation",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DailyAutoDraft": {
+      "title": "DailyAutoDraft",
+      "description": "Cadangan RPH harian yang dijana secara automatik bagi setiap slot waktu mengajar guru.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "minggu_rpt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "slot": {
+          "type": "object"
+        },
+        "rptMatch": {
+          "type": "object"
+        },
+        "requestInput": {
+          "type": "object"
+        },
+        "draft": {
+          "type": "object"
+        },
+        "teacherReflection": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "statusSemakan": {
+          "type": "string",
+          "enum": ["belum_disemak", "disemak_guru"],
+          "maxLength": 30
+        },
+        "generatedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "uid",
+        "date",
+        "minggu_rpt",
+        "slot",
+        "requestInput",
+        "draft",
+        "teacherReflection",
+        "statusSemakan",
+        "generatedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavedRphEntry": {
+      "title": "SavedRphEntry",
+      "description": "Rekod RPH yang disimpan dalam Arkib Draf guru.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object"
+        },
+        "draft": {
+          "type": "object"
+        },
+        "teacherReflection": {
+          "type": "string",
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "uid",
+        "createdAt",
+        "updatedAt",
+        "input",
+        "draft",
+        "teacherReflection"
+      ]
+    }
+  },
+  "firestore": {
+    "/teachers/{teacherId}": {
+      "schema": { "$ref": "#/entities/TeacherProfile" },
+      "description": "Profil peribadi guru (PII diasingkan dan hanya boleh diakses pemilik akaun)."
+    },
+    "/teachers/{teacherId}/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/TeacherWorkspace" },
+      "description": "Dokumen ruang kerja guru mengandungi jadual, RPT, DSKP dan tetapan format sekolah."
+    },
+    "/teachers/{teacherId}/dailyDrafts/{draftId}": {
+      "schema": { "$ref": "#/entities/DailyAutoDraft" },
+      "description": "Subkoleksi draf RPH harian yang dijana secara automatik mengikut tarikh dan slot."
+    },
+    "/teachers/{teacherId}/savedDrafts/{entryId}": {
+      "schema": { "$ref": "#/entities/SavedRphEntry" },
+      "description": "Subkoleksi arkib draf RPH yang disimpan oleh guru."
+    }
+  }
+}

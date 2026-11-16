@@ -1,0 +1,297 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(teacherId) {
+      return isSignedIn() && request.auth.uid == teacherId;
+    }
+
+    function isValidTeacherProfile(data, teacherId) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'createdAt', 'updatedAt'])
+        && data.uid is string
+        && data.uid == teacherId
+        && data.uid == request.auth.uid
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.displayName is string
+        && data.displayName.size() <= 160
+        && data.email is string
+        && data.email.size() <= 254
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWorkspace(data, teacherId) {
+      return data.keys().hasAll([
+          'uid',
+          'documents',
+          'timetable',
+          'rptEntries',
+          'syllabi',
+          'classConfigs',
+          'automation',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'documents',
+          'timetable',
+          'rptEntries',
+          'syllabi',
+          'classConfigs',
+          'automation',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.uid is string
+        && data.uid == teacherId
+        && data.uid == request.auth.uid
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.documents is list
+        && data.documents.size() <= 50
+        && (data.documents.size() == 0 || data.documents[0] is map)
+        && data.timetable is list
+        && data.timetable.size() <= 150
+        && (data.timetable.size() == 0 || data.timetable[0] is map)
+        && data.rptEntries is list
+        && data.rptEntries.size() <= 300
+        && (data.rptEntries.size() == 0 || data.rptEntries[0] is map)
+        && data.syllabi is list
+        && data.syllabi.size() <= 50
+        && (data.syllabi.size() == 0 || data.syllabi[0] is map)
+        && data.classConfigs is map
+        && data.classConfigs.size() <= 60
+        && data.automation is map
+        && data.automation.size() <= 20
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDailyDraft(data, teacherId, draftId) {
+      return data.keys().hasAll([
+          'id',
+          'uid',
+          'date',
+          'minggu_rpt',
+          'slot',
+          'requestInput',
+          'draft',
+          'teacherReflection',
+          'statusSemakan',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'uid',
+          'date',
+          'minggu_rpt',
+          'slot',
+          'rptMatch',
+          'requestInput',
+          'draft',
+          'teacherReflection',
+          'statusSemakan',
+          'generatedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string
+        && data.id == draftId
+        && isValidId(data.id)
+        && data.uid is string
+        && data.uid == teacherId
+        && data.uid == request.auth.uid
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.date is string
+        && data.date.size() >= 8
+        && data.date.size() <= 20
+        && data.minggu_rpt is string
+        && data.minggu_rpt.size() <= 40
+        && data.slot is map
+        && (!('rptMatch' in data) || data.rptMatch == null || data.rptMatch is map)
+        && data.requestInput is map
+        && data.draft is map
+        && data.teacherReflection is string
+        && data.teacherReflection.size() <= 4000
+        && data.statusSemakan is string
+        && data.statusSemakan in ['belum_disemak', 'disemak_guru']
+        && data.generatedAt is string
+        && data.generatedAt.size() <= 64
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSavedDraft(data, teacherId, entryId) {
+      return data.keys().hasAll([
+          'id',
+          'uid',
+          'createdAt',
+          'updatedAt',
+          'input',
+          'draft',
+          'teacherReflection'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'uid',
+          'createdAt',
+          'updatedAt',
+          'input',
+          'draft',
+          'teacherReflection'
+        ])
+        && data.id is string
+        && data.id == entryId
+        && isValidId(data.id)
+        && data.uid is string
+        && data.uid == teacherId
+        && data.uid == request.auth.uid
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.input is map
+        && data.draft is map
+        && data.teacherReflection is string
+        && data.teacherReflection.size() <= 4000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /teachers/{teacherId} {
+      allow get: if isValidId(teacherId) && isOwner(teacherId);
+      allow create: if isValidId(teacherId)
+        && isOwner(teacherId)
+        && isValidTeacherProfile(incoming(), teacherId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(teacherId)
+        && isOwner(teacherId)
+        && isValidTeacherProfile(incoming(), teacherId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']);
+
+      match /workspaces/{workspaceId} {
+        allow get: if isValidId(teacherId)
+          && isValidId(workspaceId)
+          && isOwner(teacherId)
+          && workspaceId == 'main';
+        allow create: if isValidId(teacherId)
+          && isValidId(workspaceId)
+          && isOwner(teacherId)
+          && workspaceId == 'main'
+          && isValidWorkspace(incoming(), teacherId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(teacherId)
+          && isValidId(workspaceId)
+          && isOwner(teacherId)
+          && workspaceId == 'main'
+          && isValidWorkspace(incoming(), teacherId)
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'documents',
+            'timetable',
+            'rptEntries',
+            'syllabi',
+            'classConfigs',
+            'automation',
+            'updatedAt'
+          ]);
+        allow delete: if isValidId(teacherId)
+          && isValidId(workspaceId)
+          && isOwner(teacherId)
+          && workspaceId == 'main';
+      }
+
+      match /dailyDrafts/{draftId} {
+        allow get: if isValidId(teacherId) && isValidId(draftId) && isOwner(teacherId);
+        allow list: if isValidId(teacherId)
+          && isOwner(teacherId)
+          && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(teacherId)
+          && isValidId(draftId)
+          && isOwner(teacherId)
+          && isValidDailyDraft(incoming(), teacherId, draftId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(teacherId)
+          && isValidId(draftId)
+          && isOwner(teacherId)
+          && isValidDailyDraft(incoming(), teacherId, draftId)
+          && incoming().uid == existing().uid
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'minggu_rpt',
+            'slot',
+            'rptMatch',
+            'requestInput',
+            'draft',
+            'teacherReflection',
+            'statusSemakan',
+            'generatedAt',
+            'updatedAt'
+          ]);
+        allow delete: if isValidId(teacherId) && isValidId(draftId) && isOwner(teacherId);
+      }
+
+      match /savedDrafts/{entryId} {
+        allow get: if isValidId(teacherId) && isValidId(entryId) && isOwner(teacherId);
+        allow list: if isValidId(teacherId)
+          && isOwner(teacherId)
+          && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(teacherId)
+          && isValidId(entryId)
+          && isOwner(teacherId)
+          && isValidSavedDraft(incoming(), teacherId, entryId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(teacherId)
+          && isValidId(entryId)
+          && isOwner(teacherId)
+          && isValidSavedDraft(incoming(), teacherId, entryId)
+          && incoming().uid == existing().uid
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'input',
+            'draft',
+            'teacherReflection',
+            'updatedAt'
+          ]);
+        allow delete: if isValidId(teacherId) && isValidId(entryId) && isOwner(teacherId);
+      }
+    }
+  }
+}

@@ -23,6 +23,7 @@ interface DailyAutomationViewProps {
   selectedDate: string;
   onSelectDate: (date: string) => void;
   onWorkspaceUpdate: (next: TeacherWorkspaceState) => Promise<void>;
+  onDailyDraftUpdate?: (entry: DailyAutoDraft) => Promise<void>;
   onGenerateDaily: (params: {
     date: string;
     mingguNombor: number;
@@ -82,6 +83,7 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
   selectedDate,
   onSelectDate,
   onWorkspaceUpdate,
+  onDailyDraftUpdate,
   onGenerateDaily,
   onLoadDemoPack,
   onGoToSetup,
@@ -187,33 +189,33 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
     });
   };
 
-  const handleDraftInlineUpdate = async (updatedDraft: RphDraftOutput) => {
-    if (!activeDailyEntry) return;
-    const updatedEntry: DailyAutoDraft = {
-      ...activeDailyEntry,
-      draft: updatedDraft,
-    };
+  const persistDailyEntry = async (updatedEntry: DailyAutoDraft) => {
+    if (onDailyDraftUpdate) {
+      await onDailyDraftUpdate(updatedEntry);
+      return;
+    }
     await onWorkspaceUpdate({
       ...workspace,
       dailyDrafts: {
         ...workspace.dailyDrafts,
-        [activeDailyEntry.id]: updatedEntry,
+        [updatedEntry.id]: updatedEntry,
       },
+    });
+  };
+
+  const handleDraftInlineUpdate = async (updatedDraft: RphDraftOutput) => {
+    if (!activeDailyEntry) return;
+    await persistDailyEntry({
+      ...activeDailyEntry,
+      draft: updatedDraft,
     });
   };
 
   const handleReflectionUpdate = async (val: string) => {
     if (!activeDailyEntry) return;
-    const updatedEntry: DailyAutoDraft = {
+    await persistDailyEntry({
       ...activeDailyEntry,
       teacherReflection: val,
-    };
-    await onWorkspaceUpdate({
-      ...workspace,
-      dailyDrafts: {
-        ...workspace.dailyDrafts,
-        [activeDailyEntry.id]: updatedEntry,
-      },
     });
   };
 
@@ -223,15 +225,9 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
       activeDailyEntry.statusSemakan === 'disemak_guru'
         ? 'belum_disemak'
         : 'disemak_guru';
-    await onWorkspaceUpdate({
-      ...workspace,
-      dailyDrafts: {
-        ...workspace.dailyDrafts,
-        [activeDailyEntry.id]: {
-          ...activeDailyEntry,
-          statusSemakan: nextStatus,
-        },
-      },
+    await persistDailyEntry({
+      ...activeDailyEntry,
+      statusSemakan: nextStatus,
     });
   };
 
