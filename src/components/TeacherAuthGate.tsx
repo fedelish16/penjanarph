@@ -33,8 +33,10 @@ export const TeacherAuthGate: React.FC<TeacherAuthGateProps> = ({
           'Pelayar menyekat tetingkap timbul (pop-up) log masuk Google. Sila benarkan pop-up untuk laman ini dan cuba semula.'
         );
       } else if (code === 'auth/unauthorized-domain') {
+        const currentHost =
+          typeof window !== 'undefined' ? window.location.hostname : '';
         setErrorMsg(
-          'Domain laman ini belum didaftarkan sebagai domain dibenarkan dalam tetapan Firebase Auth.'
+          `Domain "${currentHost}" belum didaftarkan sebagai Authorized Domain dalam Firebase Authentication. Sila tambah "${currentHost}" di Firebase Console > Authentication > Settings > Authorized domains.`
         );
       } else {
         setErrorMsg(
