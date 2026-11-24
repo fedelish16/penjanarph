@@ -14,6 +14,7 @@ import type {
   DailyAutoDraft,
   HariMinggu,
   RphDraftOutput,
+  SchoolFormatConfig,
   TeacherWorkspaceState,
   TimetableSlot,
 } from '../types/rph';
@@ -234,14 +235,15 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
   // First-time onboarding state when documents have not been uploaded yet
   if (!hasDocuments) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-8 lg:p-10 space-y-6">
+      <div className="bg-white border border-slate-200 rounded-lg p-8 lg:p-10 space-y-6 shadow-xs">
         <div className="max-w-2xl space-y-3">
-          <p className="text-xs font-semibold text-sky-700">
+          <p className="text-xs font-bold tracking-wider uppercase text-[#008EC7]">
             Automasi Harian · Jadual + RPT + Sukatan Pelajaran
           </p>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 text-balance">
-            Muat naik dokumen pengajaran anda sekali, dan biarkan AI menjana
-            cadangan RPH secara automatik setiap hari
+          <h2 className="font-editorial text-2xl sm:text-3xl font-extrabold tracking-tight text-[#060D3D] text-balance">
+            Muat naik dokumen pengajaran anda sekali, dan jana cadangan RPH
+            secara automatik setiap hari
+            <span className="text-[#00B4F0]">.</span>
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
             Apabila anda memuat naik Jadual Mengajar, RPT tahunan, dan Sukatan
@@ -253,28 +255,28 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 pt-6">
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-900">
+            <div className="text-xs font-bold text-[#060D3D]">
               01. Jadual Mengajar
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Mengenal pasti hari, masa mula/tamat, tempoh minit, subjek dan
               kelas secara automatik.
             </p>
           </div>
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-900">
+            <div className="text-xs font-bold text-[#060D3D]">
               02. Rancangan Pengajaran Tahunan
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Memadankan Minggu RPT semasa serta menyalin tema, SK dan SP
               secara verbatim.
             </p>
           </div>
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-900">
+            <div className="text-xs font-bold text-[#060D3D]">
               03. Sukatan Pelajaran (DSKP)
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Membantu cadangan aktiviti, pentaksiran TP1–TP6, KBAT dan
               pembezaan yang tepat.
             </p>
@@ -285,7 +287,7 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
           <button
             type="button"
             onClick={onGoToSetup}
-            className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-2 rounded bg-[#00B4F0] px-5 py-2.5 text-xs font-extrabold tracking-wider uppercase text-white hover:bg-[#0099D6] transition-colors whitespace-nowrap cursor-pointer"
           >
             <Upload className="w-4 h-4" />
             Muat Naik Dokumen Guru
@@ -293,10 +295,10 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
           <button
             type="button"
             onClick={() => void onLoadDemoPack()}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-2 rounded border border-[#060D3D]/20 bg-white px-5 py-2.5 text-xs font-bold tracking-wider uppercase text-[#060D3D] hover:bg-slate-50 transition-colors whitespace-nowrap cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-sky-700" />
-            Cuba Set Dokumen Contoh Lengkap
+            <Sparkles className="w-4 h-4 text-[#00B4F0]" />
+            Cuba Set Dokumen Contoh
           </button>
         </div>
       </div>
@@ -306,11 +308,11 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
   return (
     <div className="space-y-5">
       {/* Daily Control Strip */}
-      <div className="no-print bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="no-print bg-white border border-slate-200 rounded-lg p-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Date Picker */}
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-sky-700 shrink-0" />
+            <Calendar className="w-4 h-4 text-[#00B4F0] shrink-0" />
             <input
               type="date"
               value={selectedDate}
@@ -319,12 +321,12 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
                 onSelectDate(e.target.value);
               }}
               aria-label="Tarikh PdPc"
-              className="rounded-lg border border-slate-300 px-2.5 py-1.5 font-mono text-xs font-medium text-slate-900 tabular-nums focus:border-sky-700 focus:outline-none"
+              className="rounded border border-slate-300 px-2.5 py-1.5 font-mono text-xs font-medium text-[#060D3D] tabular-nums focus:border-[#00B4F0] focus:outline-none"
             />
           </div>
 
           {/* Weekday Segmented Control */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg overflow-x-auto">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-md overflow-x-auto">
             {weekDays.map((item) => {
               const active = item.date === selectedDate;
               return (
@@ -335,10 +337,10 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
                     setAutoTriggeredKey('');
                     onSelectDate(item.date);
                   }}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-3 py-1 text-xs font-semibold rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     active
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-[#060D3D] text-white shadow-xs'
+                      : 'text-slate-600 hover:text-[#060D3D]'
                   }`}
                 >
                   {item.day}
@@ -351,7 +353,7 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
           <div className="flex items-center gap-2">
             <label
               htmlFor="active-rpt-week"
-              className="text-xs font-medium text-slate-600 whitespace-nowrap"
+              className="text-xs font-semibold text-slate-600 whitespace-nowrap"
             >
               Minggu RPT:
             </label>
@@ -362,7 +364,7 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
                 setAutoTriggeredKey('');
                 void handleChangeWeek(Number(e.target.value));
               }}
-              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs font-semibold text-slate-900 focus:border-sky-700 focus:outline-none"
+              className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs font-semibold text-[#060D3D] focus:border-[#00B4F0] focus:outline-none"
             >
               {availableWeeks.map((wk) => {
                 const sampleEntry = workspace.rptEntries.find(
@@ -387,7 +389,7 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
           <button
             type="button"
             onClick={() => void handleToggleAutoDaily()}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
               workspace.automation.autoGenerateDaily
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
                 : 'border-slate-300 bg-white text-slate-600'
@@ -408,12 +410,12 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
                 forceRegenerate: true,
               })
             }
-            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 rounded bg-[#00B4F0] px-4 py-1.5 text-xs font-extrabold tracking-wider uppercase text-white hover:bg-[#0099D6] disabled:opacity-50 transition-colors whitespace-nowrap cursor-pointer"
           >
             {isGeneratingDaily ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Menjana Slot Hari Ini...
+                Menjana...
               </>
             ) : (
               <>
@@ -426,29 +428,29 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
       </div>
 
       {dailyError && (
-        <div className="no-print rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800 flex items-center gap-2">
+        <div className="no-print rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
           <span>{dailyError}</span>
         </div>
       )}
 
       {/* Main 2-Column Daily Queue + Review Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start print:block">
         {/* Left: Today's Class Queue */}
-        <div className="no-print lg:col-span-4 bg-white border border-slate-200 rounded-xl divide-y divide-slate-200">
-          <div className="p-4 flex items-center justify-between gap-2">
+        <div className="no-print lg:col-span-4 bg-white border border-slate-200 rounded-lg divide-y divide-slate-200 overflow-hidden">
+          <div className="p-4 flex items-center justify-between gap-2 bg-[#060D3D] text-white">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">
+              <h2 className="text-sm font-bold text-white">
                 Jadual Kelas · {selectedDayName}
               </h2>
-              <p className="text-xs text-slate-500 font-mono tabular-nums mt-0.5">
+              <p className="text-xs text-[#14E2D8] font-mono tabular-nums mt-0.5">
                 {selectedDate} · Minggu {activeMinggu} · {daySlots.length} sesi
               </p>
             </div>
             <button
               type="button"
               onClick={onGoToSetup}
-              className="text-xs font-medium text-sky-700 hover:underline whitespace-nowrap"
+              className="text-xs font-bold text-[#14E2D8] hover:underline whitespace-nowrap cursor-pointer"
             >
               Urus Jadual
             </button>
@@ -456,7 +458,7 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
 
           {daySlots.length === 0 ? (
             <div className="p-6 text-center space-y-2">
-              <p className="text-sm font-medium text-slate-900">
+              <p className="text-sm font-semibold text-[#060D3D]">
                 Tiada sesi mengajar pada hari {selectedDayName}
               </p>
               <p className="text-xs text-slate-500">
@@ -474,20 +476,20 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
                   <div
                     key={slot.id}
                     className={`p-4 transition-colors ${
-                      isSelected ? 'bg-sky-50/60' : 'hover:bg-slate-50/70'
+                      isSelected ? 'bg-cyan-50/75' : 'hover:bg-slate-50/80'
                     }`}
                   >
                     <button
                       type="button"
                       onClick={() => setSelectedSlotId(slot.id)}
-                      className="w-full text-left space-y-2"
+                      className="w-full text-left space-y-2 cursor-pointer"
                     >
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                        <span className="font-mono font-bold text-[#060D3D] tabular-nums">
                           {slot.masa_mula} – {slot.masa_tamat}
                         </span>
                         <span className="font-mono text-slate-500 tabular-nums flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                          <Clock className="w-3 h-3 text-[#008EC7]" />
                           {slot.tempoh_minit} minit
                         </span>
                       </div>
@@ -638,6 +640,22 @@ export const DailyAutomationView: React.FC<DailyAutomationViewProps> = ({
               isGenerating={isGeneratingDaily && !activeDailyEntry}
               errorMessage={null}
               schoolFormat={workspace.automation.schoolFormat}
+              onSchoolFormatUpdate={(patch: Partial<SchoolFormatConfig>) => {
+                const current: SchoolFormatConfig = workspace.automation
+                  .schoolFormat ?? {
+                  namaSekolah: '',
+                  namaGuru: '',
+                  tajukRph: 'Rancangan Pengajaran Harian (RPH)',
+                  sertakanTandatanganPk: true,
+                };
+                void onWorkspaceUpdate({
+                  ...workspace,
+                  automation: {
+                    ...workspace.automation,
+                    schoolFormat: { ...current, ...patch },
+                  },
+                });
+              }}
             />
           ) : (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-500">

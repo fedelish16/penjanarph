@@ -27,23 +27,23 @@ export const SavedDraftsDrawer: React.FC<SavedDraftsDrawerProps> = ({
       aria-labelledby="saved-drafts-title"
     >
       <div className="bg-white border-l border-slate-200 w-full max-w-md h-full flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-5 py-4 bg-[#060D3D] text-white border-b border-white/10">
           <div>
             <h2
               id="saved-drafts-title"
-              className="text-base font-bold text-slate-900"
+              className="text-base font-bold text-white"
             >
               Arkib Draf RPH
             </h2>
-            <p className="text-xs text-slate-500">
-              Disimpan secara setempat dalam pelayar anda
+            <p className="text-xs text-[#14E2D8]">
+              Disimpan secara kekal dalam storan awan anda
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup arkib"
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10 hover:text-white cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

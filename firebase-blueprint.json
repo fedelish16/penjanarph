@@ -68,7 +68,7 @@
         },
         "automation": {
           "type": "object",
-          "description": "Tetapan automasi harian dan format dokumen sekolah."
+          "description": "Tetapan automasi harian dan format dokumen sekolah (termasuk nama sekolah, nama guru, tajuk RPH dan logo sekolah)."
         },
         "createdAt": {
           "type": "string",

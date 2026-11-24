@@ -19,11 +19,11 @@ export const PedagogyGuideModal: React.FC<PedagogyGuideModalProps> = ({
       aria-modal="true"
       aria-labelledby="pedagogy-modal-title"
     >
-      <div className="bg-white border border-slate-200 rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white">
+      <div className="bg-white border border-slate-200 rounded-lg max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 sticky top-0 bg-[#060D3D] text-white">
           <h2
             id="pedagogy-modal-title"
-            className="text-base font-bold text-slate-900"
+            className="text-base font-bold text-white"
           >
             Prinsip &amp; Kaedah Penjanaan Draf RPH
           </h2>
@@ -31,7 +31,7 @@ export const PedagogyGuideModal: React.FC<PedagogyGuideModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Tutup panduan"
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10 hover:text-white cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

@@ -164,6 +164,7 @@ export interface SchoolFormatConfig {
   namaGuru: string;
   tajukRph: string;
   sertakanTandatanganPk: boolean;
+  logoSekolah?: string;
 }
 
 export interface AutomationConfig {

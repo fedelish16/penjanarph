@@ -2,6 +2,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  ImageRun,
   Packer,
   Paragraph,
   Table,
@@ -10,6 +11,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx';
+import { decodeDataUrlForDocx } from './schoolLogo';
 import type {
   RphActivity,
   RphDraftOutput,
@@ -94,11 +96,34 @@ export async function exportRphToDocx(params: {
 
   const docChildren: Array<Paragraph | Table> = [];
 
+  const logoDecoded = schoolFormat?.logoSekolah
+    ? await decodeDataUrlForDocx(schoolFormat.logoSekolah)
+    : null;
+
+  if (logoDecoded) {
+    docChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 60 },
+        children: [
+          new ImageRun({
+            data: logoDecoded.data,
+            transformation: {
+              width: logoDecoded.width,
+              height: logoDecoded.height,
+            },
+            type: logoDecoded.type,
+          }),
+        ],
+      })
+    );
+  }
+
   if (schoolFormat?.namaSekolah?.trim()) {
     docChildren.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 40 },
+        spacing: { after: 30 },
         children: [
           new TextRun({
             text: schoolFormat.namaSekolah.trim().toUpperCase(),
@@ -114,7 +139,7 @@ export async function exportRphToDocx(params: {
   docChildren.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 60 },
+      spacing: { after: 40 },
       children: [
         new TextRun({
           text: (
@@ -122,19 +147,19 @@ export async function exportRphToDocx(params: {
             'RANCANGAN PENGAJARAN HARIAN (RPH)'
           ).toUpperCase(),
           bold: true,
-          size: 26,
+          size: 24,
           font: 'Calibri',
         }),
       ],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 180 },
+      spacing: { after: 120 },
       children: [
         new TextRun({
           text: draft.tanda,
           italics: true,
-          size: 18,
+          size: 16,
           color: '64748B',
           font: 'Calibri',
         }),
@@ -504,7 +529,7 @@ export async function exportRphToDocx(params: {
       {
         properties: {
           page: {
-            margin: { top: 900, bottom: 900, left: 900, right: 900 },
+            margin: { top: 650, bottom: 650, left: 700, right: 700 },
           },
         },
         children: docChildren,

@@ -701,14 +701,14 @@ export const RphInputForm: React.FC<RphInputFormProps> = ({
       </div>
 
       {/* Submit */}
-      <div className="p-5 bg-slate-50/70 rounded-b-xl flex items-center justify-between gap-4">
+      <div className="p-5 bg-slate-50/70 rounded-b-lg flex items-center justify-between gap-4">
         <span className="text-xs text-slate-500">
           Guru kekal sebagai pembuat keputusan akhir.
         </span>
         <button
           type="submit"
           disabled={isGenerating || Boolean(rptJsonError)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap shrink-0"
+          className="inline-flex items-center justify-center gap-2 rounded bg-[#00B4F0] px-5 py-2.5 text-xs font-extrabold tracking-wider uppercase text-white hover:bg-[#0099D6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4F0] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap shrink-0 cursor-pointer"
         >
           {isGenerating ? (
             <>

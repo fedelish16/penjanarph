@@ -2,17 +2,22 @@ import React, { useState } from 'react';
 import {
   AlertCircle,
   BookmarkCheck,
+  Building2,
   Check,
   CheckCircle2,
   ClipboardCopy,
   FileCheck2,
   FileDown,
   FileJson,
+  Image as ImageIcon,
   LayoutList,
   Printer,
   ShieldCheck,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 import { exportRphToDocx } from '../utils/exportDocx';
+import { compressSchoolLogoFile } from '../utils/schoolLogo';
 import type {
   RphActivity,
   RphDraftOutput,
@@ -32,6 +37,7 @@ interface RphDocumentPreviewProps {
   isGenerating: boolean;
   errorMessage: string | null;
   schoolFormat?: SchoolFormatConfig;
+  onSchoolFormatUpdate?: (patch: Partial<SchoolFormatConfig>) => void;
 }
 
 type ViewTab = 'dokumen' | 'pedagogi' | 'json';
@@ -61,11 +67,31 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
   isGenerating,
   errorMessage,
   schoolFormat,
+  onSchoolFormatUpdate,
 }) => {
   const [activeTab, setActiveTab] = useState<ViewTab>('dokumen');
   const [copiedType, setCopiedType] = useState<'json' | 'text' | null>(null);
   const [savedNotice, setSavedNotice] = useState<boolean>(false);
   const [isExportingWord, setIsExportingWord] = useState<boolean>(false);
+  const [schoolPanelOpen, setSchoolPanelOpen] = useState<boolean>(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+
+  const handleQuickLogoUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !onSchoolFormatUpdate) return;
+    setLogoUploadError(null);
+    try {
+      const dataUrl = await compressSchoolLogoFile(file);
+      onSchoolFormatUpdate({ logoSekolah: dataUrl });
+    } catch (err: unknown) {
+      setLogoUploadError(
+        err instanceof Error ? err.message : 'Gagal memuat naik logo sekolah.'
+      );
+    }
+  };
 
   const handleExportWord = async () => {
     if (!draft || draft.status !== 'SIAP') return;
@@ -374,6 +400,20 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
 
           {draft.status === 'SIAP' && (
             <>
+              {onSchoolFormatUpdate && (
+                <button
+                  type="button"
+                  onClick={() => setSchoolPanelOpen((prev) => !prev)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                    schoolPanelOpen
+                      ? 'border-sky-700 bg-sky-50 text-sky-900'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-sky-700" />
+                  Nama &amp; Logo Sekolah
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleSaveClick}
@@ -423,12 +463,137 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
               >
                 <Printer className="w-3.5 h-3.5" />
-                Cetak / PDF
+                Cetak / PDF (1 Muka A4)
               </button>
             </>
           )}
         </div>
       </div>
+
+      {/* Inline Manual School Identity & Logo Editor (No-Print) */}
+      {schoolPanelOpen && onSchoolFormatUpdate && draft.status === 'SIAP' && (
+        <div className="no-print bg-white border border-sky-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900">
+                Tetapan Manual Nama &amp; Logo Sekolah untuk Cetakan A4 / Word
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Perubahan disimpan terus ke akaun awan anda dan dipaparkan pada
+                kepala surat cetakan RPH.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSchoolPanelOpen(false)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-800"
+            >
+              Tutup
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">
+                Nama Sekolah
+              </label>
+              <input
+                type="text"
+                value={schoolFormat?.namaSekolah ?? ''}
+                onChange={(e) =>
+                  onSchoolFormatUpdate({ namaSekolah: e.target.value })
+                }
+                placeholder="cth. SMK Wawasan / SK Taman Melawati"
+                className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">
+                Nama Guru
+              </label>
+              <input
+                type="text"
+                value={schoolFormat?.namaGuru ?? ''}
+                onChange={(e) =>
+                  onSchoolFormatUpdate({ namaGuru: e.target.value })
+                }
+                placeholder="cth. Cikgu Nurul Huda binti Ahmad"
+                className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">
+                Tajuk RPH
+              </label>
+              <input
+                type="text"
+                value={
+                  schoolFormat?.tajukRph ?? 'Rancangan Pengajaran Harian (RPH)'
+                }
+                onChange={(e) =>
+                  onSchoolFormatUpdate({ tajukRph: e.target.value })
+                }
+                className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-md border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                {schoolFormat?.logoSekolah ? (
+                  <img
+                    src={schoolFormat.logoSekolah}
+                    alt="Logo sekolah"
+                    className="w-9 h-9 object-contain"
+                  />
+                ) : (
+                  <ImageIcon className="w-4 h-4 text-slate-400" />
+                )}
+              </div>
+              <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer">
+                <Upload className="w-3.5 h-3.5 text-sky-700" />
+                {schoolFormat?.logoSekolah
+                  ? 'Tukar Logo Sekolah'
+                  : 'Muat Naik Logo Sekolah'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={(e) => void handleQuickLogoUpload(e)}
+                  className="sr-only"
+                />
+              </label>
+              {schoolFormat?.logoSekolah && (
+                <button
+                  type="button"
+                  onClick={() => onSchoolFormatUpdate({ logoSekolah: '' })}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Padam
+                </button>
+              )}
+            </div>
+
+            <label className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={schoolFormat?.sertakanTandatanganPk ?? true}
+                onChange={(e) =>
+                  onSchoolFormatUpdate({
+                    sertakanTandatanganPk: e.target.checked,
+                  })
+                }
+                className="rounded border-slate-300 text-sky-700 focus:ring-sky-700"
+              />
+              <span>Sertakan ruangan tandatangan Guru &amp; PK / GPK</span>
+            </label>
+          </div>
+          {logoUploadError && (
+            <p className="text-xs text-red-700">{logoUploadError}</p>
+          )}
+        </div>
+      )}
 
       {/* JSON Sahih Tab */}
       {activeTab === 'json' && (
@@ -703,99 +868,114 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
 
       {/* Dokumen RPH View */}
       {activeTab === 'dokumen' && draft.status === 'SIAP' && (
-        <article className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-200 print:border-slate-300">
-          {/* Document Title & Stamp */}
-          <div className="p-6 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              {schoolFormat?.namaSekolah?.trim() && (
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-800">
-                  {schoolFormat.namaSekolah}
-                </p>
+        <article className="rph-print-sheet bg-white border border-slate-200 rounded-xl divide-y divide-slate-200 print:border-slate-400 print:rounded-none">
+          {/* Document Title, School Logo/Name & Stamp */}
+          <div className="p-6 print:px-3 print:py-2 flex flex-wrap items-center justify-between gap-4 print:gap-2">
+            <div className="flex items-center gap-3.5 print:gap-2.5 min-w-0">
+              {schoolFormat?.logoSekolah && (
+                <img
+                  src={schoolFormat.logoSekolah}
+                  alt={
+                    schoolFormat.namaSekolah?.trim()
+                      ? `Logo ${schoolFormat.namaSekolah}`
+                      : 'Logo sekolah'
+                  }
+                  className="w-14 h-14 print:w-11 print:h-11 object-contain shrink-0"
+                />
               )}
-              <p className="text-xs font-medium text-slate-500">
-                {input.kurikulum} · {input.templat_rph.split('(')[0].trim()}
-                {schoolFormat?.namaGuru?.trim()
-                  ? ` · Guru: ${schoolFormat.namaGuru}`
-                  : ''}
-              </p>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
-                {schoolFormat?.tajukRph?.trim() ||
-                  'Rancangan Pengajaran Harian (RPH)'}
-              </h2>
+              <div className="min-w-0">
+                {schoolFormat?.namaSekolah?.trim() && (
+                  <p className="text-sm print:text-[11px] font-bold uppercase tracking-wide text-slate-900 leading-tight">
+                    {schoolFormat.namaSekolah}
+                  </p>
+                )}
+                <h2 className="text-xl print:text-[13px] font-bold tracking-tight text-slate-900 mt-0.5 print:mt-0 leading-tight">
+                  {schoolFormat?.tajukRph?.trim() ||
+                    'Rancangan Pengajaran Harian (RPH)'}
+                </h2>
+                <p className="text-xs print:text-[8.5px] font-medium text-slate-500 mt-0.5 print:mt-0">
+                  {input.kurikulum} · {input.templat_rph.split('(')[0].trim()}
+                  {schoolFormat?.namaGuru?.trim()
+                    ? ` · Guru: ${schoolFormat.namaGuru}`
+                    : ''}
+                </p>
+              </div>
             </div>
-            <div className="border border-slate-300 rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50">
+            <div className="border border-slate-300 rounded-md px-3 py-1.5 print:px-2 print:py-0.5 text-xs print:text-[8px] font-medium text-slate-700 bg-slate-50 shrink-0">
               {draft.tanda}
             </div>
           </div>
 
           {/* Maklumat Am Table */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 text-xs">
-            <div className="p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 print:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x print:divide-y-0 print:divide-x divide-slate-200 text-xs print:text-[8.5px]">
+            <div className="p-4 print:px-2 print:py-1">
               <div className="text-slate-500">Mata Pelajaran</div>
-              <div className="font-semibold text-slate-900 mt-0.5">
+              <div className="font-semibold text-slate-900 mt-0.5 print:mt-0">
                 {draft.maklumat.mata_pelajaran}
               </div>
             </div>
-            <div className="p-4">
+            <div className="p-4 print:px-2 print:py-1">
               <div className="text-slate-500">Kelas</div>
-              <div className="font-semibold text-slate-900 mt-0.5">
+              <div className="font-semibold text-slate-900 mt-0.5 print:mt-0">
                 {draft.maklumat.kelas}
               </div>
             </div>
-            <div className="p-4">
+            <div className="p-4 print:px-2 print:py-1">
               <div className="text-slate-500">Minggu RPT</div>
-              <div className="font-semibold text-slate-900 mt-0.5">
+              <div className="font-semibold text-slate-900 mt-0.5 print:mt-0">
                 {draft.maklumat.minggu_rpt}
               </div>
             </div>
-            <div className="p-4">
+            <div className="p-4 print:px-2 print:py-1">
               <div className="text-slate-500">Tarikh</div>
-              <div className="font-mono font-medium text-slate-900 tabular-nums mt-0.5">
+              <div className="font-mono font-medium text-slate-900 tabular-nums mt-0.5 print:mt-0">
                 {draft.maklumat.tarikh}
               </div>
             </div>
-            <div className="p-4 col-span-2 sm:col-span-1">
+            <div className="p-4 print:px-2 print:py-1 col-span-2 sm:col-span-1 print:col-span-1">
               <div className="text-slate-500">Masa</div>
-              <div className="font-mono font-medium text-slate-900 tabular-nums mt-0.5">
+              <div className="font-mono font-medium text-slate-900 tabular-nums mt-0.5 print:mt-0">
                 {draft.maklumat.masa}
               </div>
             </div>
           </div>
 
           {/* Kurikulum (Verbatim RPT) */}
-          <div className="p-6 space-y-3">
+          <div className="p-6 print:px-3 print:py-1.5 space-y-3 print:space-y-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm print:text-[9.5px] font-semibold text-slate-900">
                 Kurikulum &amp; Standard RPT
               </h3>
-              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+              <span className="inline-flex items-center gap-1 text-xs print:text-[8px] text-emerald-700 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 print:w-2.5 print:h-2.5" />
                 {allVerbatimMatch
                   ? 'Disalin verbatim daripada DATA_RPT_MINGGU'
                   : 'Telah diselaraskan'}
               </span>
             </div>
 
-            <dl className="grid grid-cols-1 gap-3 text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-1">
-                <dt className="text-xs font-medium text-slate-500">Tema</dt>
-                <dd className="sm:col-span-3 text-slate-900 font-medium">
+            <dl className="grid grid-cols-1 gap-3 print:gap-0.5 text-sm print:text-[8.5px]">
+              <div className="grid grid-cols-1 sm:grid-cols-4 print:grid-cols-5 gap-1">
+                <dt className="text-xs print:text-[8.5px] font-medium text-slate-500">
+                  Tema
+                </dt>
+                <dd className="sm:col-span-3 print:col-span-4 text-slate-900 font-medium">
                   {draft.kurikulum.tema}
                 </dd>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-1">
-                <dt className="text-xs font-medium text-slate-500">
+              <div className="grid grid-cols-1 sm:grid-cols-4 print:grid-cols-5 gap-1">
+                <dt className="text-xs print:text-[8.5px] font-medium text-slate-500">
                   Standard Kandungan
                 </dt>
-                <dd className="sm:col-span-3 text-slate-800 leading-relaxed">
+                <dd className="sm:col-span-3 print:col-span-4 text-slate-800 leading-relaxed print:leading-[1.25]">
                   {draft.kurikulum.standard_kandungan}
                 </dd>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-1">
-                <dt className="text-xs font-medium text-slate-500">
+              <div className="grid grid-cols-1 sm:grid-cols-4 print:grid-cols-5 gap-1">
+                <dt className="text-xs print:text-[8.5px] font-medium text-slate-500">
                   Standard Pembelajaran
                 </dt>
-                <dd className="sm:col-span-3 text-slate-800 leading-relaxed">
+                <dd className="sm:col-span-3 print:col-span-4 text-slate-800 leading-relaxed print:leading-[1.25]">
                   {draft.kurikulum.standard_pembelajaran}
                 </dd>
               </div>
@@ -803,46 +983,49 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
           </div>
 
           {/* Objektif & Kriteria Kejayaan */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2.5">
+          <div className="p-6 print:px-3 print:py-1.5 grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 print:gap-3">
+            <div className="space-y-2.5 print:space-y-1">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">
+                <h3 className="text-sm print:text-[9.5px] font-semibold text-slate-900">
                   Objektif Pembelajaran
                 </h3>
                 <span className="no-print text-[11px] text-slate-400">
                   Klik untuk sunting
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 print:space-y-0.5">
                 {draft.objektif.map((obj, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <span className="font-mono text-xs text-slate-400 mt-2 tabular-nums">
+                  <div key={idx} className="flex items-start gap-2 print:gap-1">
+                    <span className="font-mono text-xs print:text-[8.5px] text-slate-500 mt-2 print:mt-0 tabular-nums shrink-0">
                       {idx + 1}.
                     </span>
                     <textarea
                       rows={2}
                       value={obj}
                       onChange={(e) => handleObjectiveChange(idx, e.target.value)}
-                      className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-none"
+                      className="print:hidden w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-none"
                     />
+                    <p className="hidden print:block text-[8.5px] text-slate-900 leading-[1.25]">
+                      {obj}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 print:space-y-1">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">
+                <h3 className="text-sm print:text-[9.5px] font-semibold text-slate-900">
                   Kriteria Kejayaan
                 </h3>
                 <span className="no-print text-[11px] text-slate-400">
                   Klik untuk sunting
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 print:space-y-0.5">
                 {draft.kriteria_kejayaan.map((kk, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <span className="font-mono text-xs text-slate-400 mt-2">
+                  <div key={idx} className="flex items-start gap-2 print:gap-1">
+                    <span className="font-mono text-xs print:text-[8.5px] text-slate-500 mt-2 print:mt-0 shrink-0">
                       ·
                     </span>
                     <textarea
@@ -851,8 +1034,11 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                       onChange={(e) =>
                         handleSuccessCriteriaChange(idx, e.target.value)
                       }
-                      className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-none"
+                      className="print:hidden w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-none"
                     />
+                    <p className="hidden print:block text-[8.5px] text-slate-900 leading-[1.25]">
+                      {kk}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -860,19 +1046,19 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
           </div>
 
           {/* Aktiviti PdPc (Struktur Rosenshine) */}
-          <div className="p-6 space-y-4">
+          <div className="p-6 print:px-3 print:py-1.5 space-y-4 print:space-y-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">
+                <h3 className="text-sm print:text-[9.5px] font-semibold text-slate-900">
                   Aktiviti Pengajaran &amp; Pembelajaran (PdPc)
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="no-print text-xs text-slate-500">
                   Disusun mengikut struktur Rosenshine (Set Induksi, Model
                   Guru, Amalan Berpandu, Amalan Bebas, Penutup).
                 </p>
               </div>
               <div
-                className={`font-mono text-xs font-semibold tabular-nums ${
+                className={`font-mono text-xs print:text-[8.5px] font-semibold tabular-nums ${
                   minutesExactMatch ? 'text-emerald-700' : 'text-amber-700'
                 }`}
               >
@@ -881,24 +1067,34 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full text-left border-collapse text-sm">
+            <div className="overflow-x-auto border border-slate-200 rounded-lg print:rounded-none print:border-slate-300">
+              <table className="w-full text-left border-collapse text-sm print:text-[8.5px]">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-700">
-                    <th className="py-2.5 px-3 w-28">Fasa</th>
-                    <th className="py-2.5 px-3 w-20 text-right">Minit</th>
-                    <th className="py-2.5 px-3">Huraian Aktiviti</th>
-                    <th className="py-2.5 px-3">Peranan Guru</th>
-                    <th className="py-2.5 px-3">Peranan Murid</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs print:text-[8.5px] font-semibold text-slate-700">
+                    <th className="py-2.5 px-3 print:py-1 print:px-1.5 w-28 print:w-[13%]">
+                      Fasa
+                    </th>
+                    <th className="py-2.5 px-3 print:py-1 print:px-1.5 w-20 print:w-[8%] text-right">
+                      Minit
+                    </th>
+                    <th className="py-2.5 px-3 print:py-1 print:px-1.5 print:w-[31%]">
+                      Huraian Aktiviti
+                    </th>
+                    <th className="py-2.5 px-3 print:py-1 print:px-1.5 print:w-[24%]">
+                      Peranan Guru
+                    </th>
+                    <th className="py-2.5 px-3 print:py-1 print:px-1.5 print:w-[24%]">
+                      Peranan Murid
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 align-top">
                   {draft.aktiviti.map((act, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-3 text-xs font-semibold text-slate-800">
+                      <td className="py-3 px-3 print:py-1 print:px-1.5 text-xs print:text-[8.5px] font-semibold text-slate-800">
                         {phaseLabel(act.fasa)}
                       </td>
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-3 px-3 print:py-1 print:px-1.5 text-right">
                         <input
                           type="number"
                           min={1}
@@ -912,20 +1108,26 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                             )
                           }
                           aria-label={`Minit ${phaseLabel(act.fasa)}`}
-                          className="w-14 rounded border border-slate-200 px-1.5 py-1 text-right font-mono text-xs font-semibold text-slate-900 tabular-nums focus:border-sky-700 focus:outline-none"
+                          className="print:hidden w-14 rounded border border-slate-200 px-1.5 py-1 text-right font-mono text-xs font-semibold text-slate-900 tabular-nums focus:border-sky-700 focus:outline-none"
                         />
+                        <span className="hidden print:inline font-mono text-[8.5px] font-semibold text-slate-900 tabular-nums">
+                          {act.minit}m
+                        </span>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 print:py-1 print:px-1.5">
                         <textarea
                           rows={3}
                           value={act.huraian}
                           onChange={(e) =>
                             handleActivityChange(idx, 'huraian', e.target.value)
                           }
-                          className="w-full min-w-[160px] rounded border border-transparent hover:border-slate-200 focus:border-sky-700 p-1 text-xs text-slate-800 leading-relaxed focus:outline-none resize-y"
+                          className="print:hidden w-full min-w-[160px] rounded border border-transparent hover:border-slate-200 focus:border-sky-700 p-1 text-xs text-slate-800 leading-relaxed focus:outline-none resize-y"
                         />
+                        <p className="hidden print:block text-[8.5px] text-slate-900 leading-[1.24]">
+                          {act.huraian}
+                        </p>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 print:py-1 print:px-1.5">
                         <textarea
                           rows={3}
                           value={act.peranan_guru}
@@ -936,10 +1138,13 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                               e.target.value
                             )
                           }
-                          className="w-full min-w-[150px] rounded border border-transparent hover:border-slate-200 focus:border-sky-700 p-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                          className="print:hidden w-full min-w-[150px] rounded border border-transparent hover:border-slate-200 focus:border-sky-700 p-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
                         />
+                        <p className="hidden print:block text-[8.5px] text-slate-800 leading-[1.24]">
+                          {act.peranan_guru}
+                        </p>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 print:py-1 print:px-1.5">
                         <textarea
                           rows={3}
                           value={act.peranan_murid}
@@ -950,8 +1155,11 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                               e.target.value
                             )
                           }
-                          className="w-full min-w-[150px] rounded border border-transparent hover:border-slate-200 focus:border-sky-700 p-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                          className="print:hidden w-full min-w-[150px] rounded border border-transparent hover:border-slate-200 focus:border-sky-700 p-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
                         />
+                        <p className="hidden print:block text-[8.5px] text-slate-800 leading-[1.24]">
+                          {act.peranan_murid}
+                        </p>
                       </td>
                     </tr>
                   ))}
@@ -961,13 +1169,13 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
           </div>
 
           {/* BBM, EMK, KBAT, Pentaksiran (PBD), Pembezaan (Semua Boleh Disunting) */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-            <div className="space-y-4">
+          <div className="p-6 print:px-3 print:py-1.5 grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 print:gap-3 text-sm print:text-[8.5px]">
+            <div className="space-y-4 print:space-y-1">
               <div>
                 <div className="flex items-center justify-between">
                   <label
                     htmlFor="edit-bbm"
-                    className="text-xs font-semibold text-slate-500"
+                    className="text-xs print:text-[8.5px] font-semibold text-slate-500"
                   >
                     Bahan Bantu Mengajar (BBM)
                   </label>
@@ -988,15 +1196,18 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                         .filter(Boolean),
                     })
                   }
-                  className="mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 focus:outline-none"
+                  className="print:hidden mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 focus:outline-none"
                 />
+                <p className="hidden print:block text-[8.5px] text-slate-900 leading-[1.24]">
+                  {draft.bbm.join(', ') || '—'}
+                </p>
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
                   <label
                     htmlFor="edit-emk"
-                    className="text-xs font-semibold text-slate-500"
+                    className="text-xs print:text-[8.5px] font-semibold text-slate-500"
                   >
                     Elemen Merentas Kurikulum (EMK)
                   </label>
@@ -1017,13 +1228,16 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                         .filter(Boolean),
                     })
                   }
-                  className="mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 focus:outline-none"
+                  className="print:hidden mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 focus:outline-none"
                 />
+                <p className="hidden print:block text-[8.5px] text-slate-900 leading-[1.24]">
+                  {draft.emk.join(', ') || '—'}
+                </p>
               </div>
 
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-slate-500">
+                  <span className="text-xs print:text-[8.5px] font-semibold text-slate-500">
                     Kemahiran Berfikir Aras Tinggi (KBAT)
                   </span>
                   <input
@@ -1036,8 +1250,11 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                       })
                     }
                     aria-label="Aras Bloom KBAT"
-                    className="w-32 rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-right text-xs font-medium text-sky-800 focus:outline-none"
+                    className="print:hidden w-32 rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-right text-xs font-medium text-sky-800 focus:outline-none"
                   />
+                  <span className="hidden print:inline text-[8.5px] font-semibold text-slate-800">
+                    {draft.kbat.aras_bloom}
+                  </span>
                 </div>
                 <textarea
                   rows={2}
@@ -1051,15 +1268,18 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                       },
                     })
                   }
-                  className="mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-y"
+                  className="print:hidden mt-1 w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-y"
                 />
+                <p className="hidden print:block text-[8.5px] text-slate-900 leading-[1.24]">
+                  {draft.kbat.soalan_atau_tugasan}
+                </p>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-1.5">
+            <div className="space-y-4 print:space-y-1">
+              <div className="space-y-1.5 print:space-y-0.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-slate-500">
+                  <span className="text-xs print:text-[8.5px] font-semibold text-slate-500">
                     Pentaksiran Bilik Darjah (PBD ·{' '}
                     {draft.pentaksiran.jenis.toUpperCase()})
                   </span>
@@ -1076,8 +1296,11 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                       })
                     }
                     aria-label="Kaedah PBD"
-                    className="w-44 rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-right text-xs font-medium text-slate-700 focus:outline-none"
+                    className="print:hidden w-44 rounded border border-transparent hover:border-slate-200 focus:border-sky-700 px-1.5 py-0.5 text-right text-xs font-medium text-slate-700 focus:outline-none"
                   />
+                  <span className="hidden print:inline text-[8.5px] font-semibold text-slate-800">
+                    {draft.pentaksiran.kaedah}
+                  </span>
                 </div>
                 <textarea
                   rows={2}
@@ -1091,10 +1314,13 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                       },
                     })
                   }
-                  className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-y"
+                  className="print:hidden w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-sm text-slate-800 leading-relaxed focus:outline-none resize-y"
                 />
-                <div className="flex items-start gap-1.5 text-xs text-slate-600">
-                  <span className="font-medium text-slate-700 mt-1 shrink-0">
+                <p className="hidden print:block text-[8.5px] text-slate-900 leading-[1.24]">
+                  {draft.pentaksiran.soalan_atau_tugasan}
+                </p>
+                <div className="flex items-start gap-1.5 text-xs print:text-[8.5px] text-slate-600">
+                  <span className="font-medium text-slate-700 mt-1 print:mt-0 shrink-0">
                     Rubrik / TP:
                   </span>
                   <textarea
@@ -1109,17 +1335,20 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                         },
                       })
                     }
-                    className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                    className="print:hidden w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 focus:bg-slate-50/40 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
                   />
+                  <span className="hidden print:inline text-[8.5px] text-slate-800 leading-[1.24]">
+                    {draft.pentaksiran.rubrik_ringkas}
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-2 border-t border-slate-200 pt-3">
-                <h4 className="text-xs font-semibold text-slate-500">
+              <div className="space-y-2 print:space-y-0.5 border-t border-slate-200 pt-3 print:pt-1">
+                <h4 className="text-xs print:text-[8.5px] font-semibold text-slate-500">
                   Pembezaan PdPc
                 </h4>
-                <div className="flex items-start gap-1.5 text-xs text-slate-700">
-                  <span className="font-semibold text-slate-900 mt-1 shrink-0">
+                <div className="flex items-start gap-1.5 text-xs print:text-[8.5px] text-slate-700">
+                  <span className="font-semibold text-slate-900 mt-1 print:mt-0 shrink-0">
                     Pemulihan:
                   </span>
                   <textarea
@@ -1134,11 +1363,14 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                         },
                       })
                     }
-                    className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                    className="print:hidden w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
                   />
+                  <span className="hidden print:inline text-[8.5px] text-slate-800 leading-[1.24]">
+                    {draft.pembezaan.pemulihan}
+                  </span>
                 </div>
-                <div className="flex items-start gap-1.5 text-xs text-slate-700">
-                  <span className="font-semibold text-slate-900 mt-1 shrink-0">
+                <div className="flex items-start gap-1.5 text-xs print:text-[8.5px] text-slate-700">
+                  <span className="font-semibold text-slate-900 mt-1 print:mt-0 shrink-0">
                     Pengayaan:
                   </span>
                   <textarea
@@ -1153,23 +1385,26 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
                         },
                       })
                     }
-                    className="w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
+                    className="print:hidden w-full rounded-md border border-transparent hover:border-slate-200 focus:border-sky-700 px-2 py-1 text-xs text-slate-700 leading-relaxed focus:outline-none resize-y"
                   />
+                  <span className="hidden print:inline text-[8.5px] text-slate-800 leading-[1.24]">
+                    {draft.pembezaan.pengayaan}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Ruangan Refleksi Guru */}
-          <div className="p-6 space-y-2 bg-slate-50/40 rounded-b-xl">
+          <div className="p-6 print:px-3 print:py-1.5 space-y-2 print:space-y-1 bg-slate-50/40 print:bg-white rounded-b-xl print:rounded-none">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label
                 htmlFor="teacher-reflection"
-                className="text-sm font-semibold text-slate-900"
+                className="text-sm print:text-[9px] font-semibold text-slate-900"
               >
                 Refleksi Guru (Diisi selepas mengajar)
               </label>
-              <span className="text-xs text-slate-500">
+              <span className="no-print text-xs text-slate-500">
                 Medan &ldquo;refleksi&rdquo; dalam JSON AI sentiasa kosong
                 (&quot;&quot;)
               </span>
@@ -1180,20 +1415,24 @@ export const RphDocumentPreview: React.FC<RphDocumentPreviewProps> = ({
               value={teacherReflection}
               onChange={(e) => onTeacherReflectionChange(e.target.value)}
               placeholder="Catatkan bilangan murid yang mencapai objektif dan tindakan susulan selepas sesi pengajaran tamat..."
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-700/15"
+              className="print:hidden w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-700/15"
             />
+            <p className="hidden print:block text-[8.5px] text-slate-800 leading-[1.25] min-h-[16px]">
+              {teacherReflection.trim() ||
+                '____________________________________________________________________________________________________________'}
+            </p>
 
             {schoolFormat?.sertakanTandatanganPk && (
-              <div className="hidden print:grid grid-cols-2 gap-8 pt-6 text-xs text-slate-700">
-                <div className="space-y-8">
+              <div className="hidden print:grid grid-cols-2 gap-10 pt-2 text-[8.5px] text-slate-800">
+                <div className="space-y-5">
                   <div className="font-semibold">Disediakan oleh:</div>
-                  <div className="border-t border-slate-400 pt-1">
+                  <div className="border-t border-slate-400 pt-0.5">
                     {schoolFormat.namaGuru?.trim() || 'Guru Mata Pelajaran'}
                   </div>
                 </div>
-                <div className="space-y-8">
+                <div className="space-y-5">
                   <div className="font-semibold">Disemak oleh (PK / GPK):</div>
-                  <div className="border-t border-slate-400 pt-1">
+                  <div className="border-t border-slate-400 pt-0.5">
                     Tandatangan &amp; Tarikh Semakan
                   </div>
                 </div>

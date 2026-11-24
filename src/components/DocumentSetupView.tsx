@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   FileText,
+  Image as ImageIcon,
   Loader2,
   Plus,
   RotateCcw,
@@ -14,6 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { COMMON_RESOURCES, RPH_TEMPLATES } from '../data/presets';
+import { compressSchoolLogoFile } from '../utils/schoolLogo';
 import type {
   ClassContextConfig,
   DocumentKind,
@@ -68,6 +70,7 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
   );
   const [pasteText, setPasteText] = useState<string>('');
   const [mergeMode, setMergeMode] = useState<'replace' | 'append'>('replace');
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   const [newSlot, setNewSlot] = useState<Omit<TimetableSlot, 'id'>>({
     hari: 'Isnin',
@@ -215,6 +218,23 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
     });
   };
 
+  const handleLogoFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogoError(null);
+    try {
+      const dataUrl = await compressSchoolLogoFile(file);
+      await handleUpdateSchoolFormat({ logoSekolah: dataUrl });
+    } catch (err: unknown) {
+      setLogoError(
+        err instanceof Error ? err.message : 'Gagal memuat naik logo sekolah.'
+      );
+    }
+  };
+
   const handleDeleteSyllabus = async (id: string) => {
     await onWorkspaceUpdate({
       ...workspace,
@@ -270,9 +290,9 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Action Strip */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-base font-bold text-slate-900">
+          <h2 className="text-base font-bold text-[#060D3D]">
             Persediaan Dokumen Induk Guru
           </h2>
           <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
@@ -283,14 +303,14 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-md text-xs">
             <button
               type="button"
               onClick={() => setMergeMode('replace')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded font-semibold transition-colors whitespace-nowrap cursor-pointer ${
                 mergeMode === 'replace'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#060D3D] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-[#060D3D]'
               }`}
             >
               Ganti Data Semasa
@@ -298,10 +318,10 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
             <button
               type="button"
               onClick={() => setMergeMode('append')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded font-semibold transition-colors whitespace-nowrap cursor-pointer ${
                 mergeMode === 'append'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#060D3D] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-[#060D3D]'
               }`}
             >
               Tambah / Gabung
@@ -312,9 +332,9 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
             type="button"
             onClick={() => void onLoadDemoPack()}
             disabled={uploadingKind !== null}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-[#060D3D] hover:bg-slate-50 transition-colors whitespace-nowrap cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-sky-700" />
+            <Sparkles className="w-3.5 h-3.5 text-[#00B4F0]" />
             Muat Set Contoh Lengkap
           </button>
 
@@ -322,7 +342,7 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
             <button
               type="button"
               onClick={() => void onResetWorkspace()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:text-red-700 hover:border-red-200 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:text-red-700 hover:border-red-200 transition-colors whitespace-nowrap cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Kosongkan
@@ -333,7 +353,7 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
             <button
               type="button"
               onClick={onGoToDailyAutomation}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-800 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 rounded bg-[#00B4F0] px-4 py-2 text-xs font-extrabold tracking-wider uppercase text-white hover:bg-[#0099D6] transition-colors whitespace-nowrap cursor-pointer"
             >
               Buka Automasi Harian
             </button>
@@ -342,7 +362,7 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
       </div>
 
       {uploadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
           {uploadError}
         </div>
       )}
@@ -350,12 +370,12 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
       {/* 3 Upload Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* 1. Jadual Mengajar */}
-        <section className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between space-y-4">
+        <section className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-sky-700 shrink-0" />
-                <h3 className="text-sm font-semibold text-slate-900">
+                <CalendarDays className="w-4 h-4 text-[#00B4F0] shrink-0" />
+                <h3 className="text-sm font-bold text-[#060D3D]">
                   01. Jadual Mengajar
                 </h3>
               </div>
@@ -384,7 +404,7 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-            <label className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 cursor-pointer transition-colors whitespace-nowrap">
+            <label className="flex-1 inline-flex items-center justify-center gap-1.5 rounded bg-[#060D3D] px-3 py-2 text-xs font-bold text-white hover:bg-[#0D1A5C] cursor-pointer transition-colors whitespace-nowrap">
               {uploadingKind === 'jadual' ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1238,6 +1258,63 @@ export const DocumentSetupView: React.FC<DocumentSetupViewProps> = ({
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-14 h-14 rounded-lg border border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                    {workspace.automation.schoolFormat?.logoSekolah ? (
+                      <img
+                        src={workspace.automation.schoolFormat.logoSekolah}
+                        alt="Logo sekolah"
+                        className="w-12 h-12 object-contain"
+                      />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="font-semibold text-slate-900">
+                      Logo / Lencana Sekolah (Untuk Cetakan A4 &amp; Word)
+                    </div>
+                    <p className="text-slate-500">
+                      Muat naik fail PNG, JPG, WebP atau SVG lencana sekolah.
+                      Imej dioptimumkan secara automatik dan disimpan di awan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer transition-colors whitespace-nowrap">
+                    <Upload className="w-3.5 h-3.5 text-sky-700" />
+                    {workspace.automation.schoolFormat?.logoSekolah
+                      ? 'Tukar Logo'
+                      : 'Muat Naik Logo'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={(e) => void handleLogoFileUpload(e)}
+                      className="sr-only"
+                    />
+                  </label>
+                  {workspace.automation.schoolFormat?.logoSekolah && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleUpdateSchoolFormat({ logoSekolah: '' })
+                      }
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors whitespace-nowrap"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Padam
+                    </button>
+                  )}
+                </div>
+              </div>
+              {logoError && (
+                <p className="text-xs text-red-700">{logoError}</p>
+              )}
             </div>
 
             <label className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">

@@ -21,6 +21,13 @@ import {
   getMalayDayName,
 } from './server/workspaceStore.ts';
 import { parseUploadedTeacherDocument } from './server/documentParser.ts';
+import { requireTeacherAuth } from './server/firebaseAuth.ts';
+import {
+  streamTeacherChatReply,
+  type ChatbotRoleMode,
+  type ChatTurnMessage,
+  type ChatWorkspaceContext,
+} from './server/teacherChat.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -433,7 +440,7 @@ async function startServer() {
   });
 
   // Stateless demo pack endpoint for per-teacher cloud workspaces
-  app.post('/api/workspace/load-demo-pack', (_req, res) => {
+  app.post('/api/workspace/load-demo-pack', requireTeacherAuth, (_req, res) => {
     try {
       const demo = createDemoTeacherWorkspace();
       res.json(demo);
@@ -447,7 +454,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/workspace/reset', (_req, res) => {
+  app.post('/api/workspace/reset', requireTeacherAuth, (_req, res) => {
     try {
       const empty = createDefaultEmptyWorkspace();
       res.json(empty);
@@ -464,6 +471,7 @@ async function startServer() {
   // Upload and AI-parse Jadual, RPT, or Sukatan Pelajaran (stateless; client persists to Firestore)
   app.post(
     '/api/documents/parse',
+    requireTeacherAuth,
     upload.single('file'),
     async (req, res) => {
       try {
@@ -539,7 +547,7 @@ async function startServer() {
   );
 
   // Manual single RPH draft generation
-  app.post('/api/rph/generate', async (req, res) => {
+  app.post('/api/rph/generate', requireTeacherAuth, async (req, res) => {
     try {
       const input = req.body as RphRequestInput;
       if (!input || !input.data_rpt_minggu) {
@@ -571,7 +579,7 @@ async function startServer() {
   });
 
   // Daily automatic RPH generation for all teaching slots on a given date (stateless; returns generatedDrafts)
-  app.post('/api/rph/generate-daily', async (req, res) => {
+  app.post('/api/rph/generate-daily', requireTeacherAuth, async (req, res) => {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
@@ -743,6 +751,71 @@ async function startServer() {
             ? err.message
             : 'Gagal menjana draf RPH harian secara automatik.',
       });
+    }
+  });
+
+  // Multi-turn teacher pedagogy & RPH Gemini chatbot (streaming SSE)
+  app.post('/api/chat', requireTeacherAuth, async (req, res) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      res.status(500).json({
+        error:
+          'Kunci API Gemini belum dikonfigurasi pada pelayan. Sila semak panel Settings > Secrets.',
+      });
+      return;
+    }
+
+    const rawMessages = Array.isArray(req.body?.messages)
+      ? (req.body.messages as ChatTurnMessage[])
+      : [];
+    const latestUserMessage =
+      typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+
+    if (!latestUserMessage) {
+      res.status(400).json({
+        error: 'Sila taip soalan atau arahan anda terlebih dahulu.',
+      });
+      return;
+    }
+
+    const roleMode: ChatbotRoleMode =
+      req.body?.roleMode === 'idea_pantas' ? 'idea_pantas' : 'perunding_rph';
+    const workspaceContext =
+      req.body?.workspaceContext &&
+      typeof req.body.workspaceContext === 'object'
+        ? (req.body.workspaceContext as ChatWorkspaceContext)
+        : undefined;
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    const sendEvent = (payload: Record<string, unknown>) => {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    try {
+      await streamTeacherChatReply({
+        apiKey,
+        roleMode,
+        priorTurns: rawMessages,
+        latestUserMessage,
+        workspaceContext,
+        onDelta: (delta) => {
+          sendEvent({ delta });
+        },
+      });
+      sendEvent({ done: true });
+      res.end();
+    } catch (err: unknown) {
+      console.error('Error in /api/chat:', err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Ralat tidak dijangka semasa berhubung dengan pembantu Gemini.';
+      sendEvent({ error: message });
+      res.end();
     }
   });
 
